@@ -22,22 +22,22 @@ config = {
     # Change this to "framework: torch", if you are using PyTorch.
     # Also, use "framework: tf2" for tf2.x eager execution.
     "framework": "tf",
-    "entropy_coeff": 0.001,
+    "entropy_coeff": 0.0001,
     # "entropy_coeff_schedule":PiecewiseSchedule(endpoints=[(0, 0.01), (143000, 0.00001)]),
-    "lr": 3e-6,
+    "lr": 3e-5,
     "gamma": 0.994,
     "clip_param": 0.2,
     "seed": 5321,
     "num_sgd_iter": 2,
     "sgd_minibatch_size": 1000,
-    "vf_loss_coeff": 1e-9,
-    "vf_clip_param": 1e7,
+    # "vf_loss_coeff": 1e-9,
+    # "vf_clip_param": 1e7,
     # Tweak the default model provided automatically by RLlib,
     # given the environment's observation- and action spaces.
     "model": {
         # == LSTM ==
         # Whether to wrap the model with an LSTM.
-        # "use_lstm": True,
+        "use_lstm": False,
         # Max seq len for training the LSTM, defaults to 20.
         # "max_seq_len": 64,
         # Size of the LSTM cell.
@@ -58,7 +58,7 @@ config = {
     },
     "train_batch_size": 32000,
     "timesteps_per_iteration": 32000,
-    "output": "tmp/ib-out",
+    # "output": "tmp/ib-out",
     # Set up a separate evaluation worker set for the
     # `trainer.evaluate()` call after training (see below).
     "evaluation_num_workers": 3,

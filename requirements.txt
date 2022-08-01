@@ -1,3 +1,4 @@
+jupyter
 tensorflow
 industrial_benchmark_python
 ray[all]
