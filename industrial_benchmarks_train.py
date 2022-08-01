@@ -1,8 +1,8 @@
+import ray.tune as tune
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.tune import register_env
-from IBGym_modified import IBGymModded
-import ray.tune as tune
 
+from IBGym_modified import IBGymModded
 
 
 def env_creator(config):
@@ -58,7 +58,7 @@ config = {
     },
     "train_batch_size": 32000,
     "timesteps_per_iteration": 32000,
-
+    "output": "tmp/ib-out",
     # Set up a separate evaluation worker set for the
     # `trainer.evaluate()` call after training (see below).
     "evaluation_num_workers": 3,
