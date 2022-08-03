@@ -1,4 +1,5 @@
 jupyter
+scikit-learn
 tensorflow
 industrial_benchmark_python
 ray[all]

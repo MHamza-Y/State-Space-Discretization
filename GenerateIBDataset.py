@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 
 from IBGym_modified import IBGymModded
 from offline.convert_datset import create_lstm_dataset
@@ -14,7 +15,7 @@ if __name__ == "__main__":
     episodes = 1000
     steps_per_episode = 1000
     input_time_steps = 50
-    output_time_steps = 10
+    output_time_steps = 1
 
     writer_path = os.path.join("tmp", "ib-out")
     if os.path.exists(writer_path) and os.path.isdir(writer_path):
@@ -22,4 +23,9 @@ if __name__ == "__main__":
     env = env_creator(steps_per_episode)
     env_sampler = GymEnvSampler(env, writer_path, episodes=episodes)
     env_sampler.create_dataset()
-    create_lstm_dataset("tmp/ib-out/*.json", "tmp/ib-out/ib-samples.json", input_steps=3, output_steps=2)
+    start = time.time()
+    create_lstm_dataset("tmp/ib-out/*.json", "tmp/ib-out/ib-samples.json", input_steps=input_time_steps,
+                        output_steps=output_time_steps, output_keys=["obs"])
+    end = time.time()
+    total = end - start
+    print(total)

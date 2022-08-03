@@ -37,16 +37,16 @@ config = {
     "model": {
         # == LSTM ==
         # Whether to wrap the model with an LSTM.
-        "use_lstm": False,
+        "use_lstm": True,
         # Max seq len for training the LSTM, defaults to 20.
         # "max_seq_len": 64,
         # Size of the LSTM cell.
-        # "lstm_cell_size": 64,
-        "use_attention": True,
-        "attention_num_transformer_units": 2,
-        "attention_dim": 128,
+        "lstm_cell_size": 64,
+        # "use_attention": True,
+        # "attention_num_transformer_units": 2,
+        # "attention_dim": 128,
         # "vf_share_layers": True,
-        "fcnet_hiddens": [32, 32, 32],
+        # "fcnet_hiddens": [32, 32, 32],
         # "sgd_minibatch_size": 1024,
         "vf_share_layers": False,
         # Whether to feed a_{t-1} to LSTM (one-hot encoded if discrete).
@@ -58,7 +58,7 @@ config = {
     },
     "train_batch_size": 32000,
     "timesteps_per_iteration": 32000,
-    # "output": "tmp/ib-out",
+    "output": "tmp/ib-out",
     # Set up a separate evaluation worker set for the
     # `trainer.evaluate()` call after training (see below).
     "evaluation_num_workers": 3,
