@@ -1,3 +1,5 @@
 venv
 tmp
 .idea
+/dynamic_model/
+/.ipynb_checkpoints/
