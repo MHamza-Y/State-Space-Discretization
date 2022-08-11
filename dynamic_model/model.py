@@ -1,12 +1,13 @@
 import torch
 from torch import nn
 
+from dynamic_model.activations import StraightThroughEstimator
+
 
 class DynamicsModel(nn.Module):
 
-    def __init__(self, features, hidden_size, out_size, seq_len, batch_size, dropout_p=0.5):
+    def __init__(self, features, hidden_size, out_size, seq_len, batch_size, dropout_p=0.5, lstm_activation=None):
         super().__init__()
-
         self.seq_len = seq_len
 
         self.hidden_size = hidden_size
@@ -15,7 +16,7 @@ class DynamicsModel(nn.Module):
         self.batch_size = batch_size
 
         self.lstm_cell = nn.LSTMCell(input_size=features, hidden_size=hidden_size)
-        self.lstm_sig = nn.Sigmoid()
+        self.lstm_act = StraightThroughEstimator() if lstm_activation is None else lstm_activation
         self.dropout_layer = nn.Dropout(p=dropout_p)
         self.fcl = nn.Linear(in_features=hidden_size, out_features=out_size)
 
@@ -25,7 +26,7 @@ class DynamicsModel(nn.Module):
 
         h, c = hc
 
-        sig_out = self.lstm_sig(h)
+        sig_out = self.lstm_act(h)
         output = self.fcl(self.dropout_layer(sig_out))
 
         return output
