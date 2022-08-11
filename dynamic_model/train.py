@@ -7,9 +7,9 @@ def train_step(data_loader, model, loss_function, optimizer):
     num_batches = len(data_loader)
     total_loss = 0
     model.train()
-    hc = model.init_hidden()
+    # hc = model.init_hidden()
     for X, y in data_loader:
-        output = model(X, hc)
+        output = model(X)
         loss = loss_function(output, y)
 
         optimizer.zero_grad()
@@ -26,11 +26,11 @@ def test_step(data_loader, model, loss_function):
     num_batches = len(data_loader)
     total_loss = 0
 
-    hc = model.init_hidden()
+    #hc = model.init_hidden()
     model.eval()
     with torch.no_grad():
         for X, y in data_loader:
-            output = model(X, hc)
+            output = model(X)
             total_loss += loss_function(output, y).item()
 
     avg_loss = total_loss / num_batches
