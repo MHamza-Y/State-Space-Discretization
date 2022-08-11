@@ -2,6 +2,7 @@ jupyter
 scikit-learn
 tensorflow
 tables
+tqdm
 industrial_benchmark_python
 ray[all]
 gym==0.21
