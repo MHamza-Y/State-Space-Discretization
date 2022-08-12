@@ -146,10 +146,10 @@ def create_look_ahead_lstm_dataset(rllib_files, out_path, input_steps, output_st
     if os.path.exists(out_path):
         os.remove(out_path)
     if output_keys is None:
-        output_keys = ["obs", "actions"]
+        output_keys = ["obs"]
 
     if input_keys is None:
-        input_keys = ["obs"]
+        input_keys = ["obs", "actions"]
 
     data = load_rllib_dataset(rllib_files)
 
@@ -159,6 +159,7 @@ def create_look_ahead_lstm_dataset(rllib_files, out_path, input_steps, output_st
         lstm_episode_input_dataset = {}
         lstm_episode_output_dataset = {}
         for key, value in obj.items():
+
             if key in input_keys:
                 converted_input = covert_episode_input_lookahead(value, input_steps, output_steps)
 
@@ -173,6 +174,7 @@ def create_look_ahead_lstm_dataset(rllib_files, out_path, input_steps, output_st
         merge_multiple_features(lstm_episode_output_dataset, output_keys, "merged_output", merged_data)
 
     for key in merged_data:
+        print(key)
         print(np.shape(merged_data[key]))
     # save_json(out_path=out_path, data=merged_data)
     save_numpy(out_path=out_path, data=merged_data)

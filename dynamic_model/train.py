@@ -1,6 +1,7 @@
 from time import time
 
 import torch
+from torch.nn.utils.clip_grad import clip_grad_norm_
 
 
 def train_step(data_loader, model, loss_function, optimizer):
@@ -14,6 +15,7 @@ def train_step(data_loader, model, loss_function, optimizer):
 
         optimizer.zero_grad()
         loss.backward()
+        clip_grad_norm_(model.parameters(), max_norm=1.0, norm_type=2)
         optimizer.step()
 
         total_loss += loss.item()
