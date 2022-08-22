@@ -6,10 +6,20 @@ from torch.utils.data.dataset import T_co
 
 
 class DynamicsModelDataset(Dataset):
-    def __init__(self, x, y, device):
-        self.x = torch.tensor(x, dtype=torch.float32).to(device)
-        self.y = torch.tensor(y, dtype=torch.float32).to(device)
+    def __init__(self, x, y, device, normalize=False, replace_constant_val=0.7):
+        self.x = x
+        self.y = y
         self.len = x.shape[0]
+        if normalize:
+            self.x_mean = self.x.mean(dim=(0, 1), keepdim=True)
+            self.y_mean = self.y.mean(dim=(0, 1), keepdim=True)
+            self.x_std = self.x.std(dim=(0, 1), keepdim=True)
+            self.y_std = self.y.std(dim=(0, 1), keepdim=True)
+            self.x = (self.x - self.x_mean) / self.x_std
+            self.x[:, :, 0] = replace_constant_val
+
+            self.y = (self.y - self.y_mean) / self.y_std
+            self.y[:, :, 0] = replace_constant_val
         print(x.shape)
         print(y.shape)
 
@@ -35,11 +45,17 @@ class DynamicsModelDataset(Dataset):
         return self.get_output_seq_len() - 1
 
 
-def load_dataset(file_path, input_key, output_key, dataset_class, device, test_size=0.3, ):
+def load_dataset(file_path, input_key, output_key, dataset_class, device, normalize=False, test_size=0.3, ):
     dataset = np.load(file_path, allow_pickle=True)
     x = dataset[()][input_key]
     y = dataset[()][output_key]
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size)
-    train_dataset = dataset_class(x_train, y_train, device)
-    validation_dataset = dataset_class(x_test, y_test, device)
+
+    x_train = torch.tensor(x_train, dtype=torch.float32).to(device)
+    x_test = torch.tensor(x_test, dtype=torch.float32).to(device)
+    y_train = torch.tensor(y_train, dtype=torch.float32).to(device)
+    y_test = torch.tensor(y_test, dtype=torch.float32).to(device)
+
+    train_dataset = dataset_class(x_train, y_train, device, normalize=normalize)
+    validation_dataset = dataset_class(x_test, y_test, device, normalize=normalize)
     return train_dataset, validation_dataset

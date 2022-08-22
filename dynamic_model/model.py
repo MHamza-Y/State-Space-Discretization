@@ -87,13 +87,17 @@ class DynamicsLookAheadModel(nn.Module):
         self.lstm_cells = self._create_lstm_cell_layers()
         self.lstm_activation = StraightThroughEstimator() if lstm_activation is None else lstm_activation
         self.dropout_layers = self._create_dropout_layers()
-        self.fcl = nn.Linear(in_features=hidden_size, out_features=out_size)
+        self.fcl1 = nn.Linear(in_features=hidden_size, out_features=hidden_size)
+        self.fcl1_act = nn.GELU()
+        self.fcl2 = nn.Linear(in_features=hidden_size, out_features=hidden_size)
+        self.fcl2_act = nn.GELU()
+        self.fcl3 = nn.Linear(in_features=hidden_size, out_features=out_size)
 
     def _create_lstm_cell_layers(self):
         layers = nn.ModuleList()
         for layer_idx in range(self.n_layers):
 
-            if layer_idx is 0:
+            if layer_idx == 0:
                 layer_input_size = self.features
             else:
                 layer_input_size = self.hidden_size
@@ -108,7 +112,7 @@ class DynamicsLookAheadModel(nn.Module):
 
     def lstm_layers_forward(self, x, h, c):
         for layer_idx in range(self.n_layers):
-            if layer_idx is 0:
+            if layer_idx == 0:
                 layer_input = x
             else:
                 layer_input = h[layer_idx - 1]
@@ -118,8 +122,12 @@ class DynamicsLookAheadModel(nn.Module):
 
     def final_dense_forward(self, h):
         activated_out = self.lstm_activation(h[-1])
-        output = self.fcl(activated_out)
-        return output
+        fcl1_out = self.fcl1(activated_out)
+        fcl1_act_out = self.fcl1_act(fcl1_out)
+        fcl2_out = self.fcl2(fcl1_act_out)
+        fcl2_act_out = self.fcl2_act(fcl2_out)
+        fcl3_out = self.fcl3(fcl2_act_out)
+        return fcl3_out
 
     def forward(self, x):
         outputs = []
@@ -132,10 +140,9 @@ class DynamicsLookAheadModel(nn.Module):
 
         outputs += [output.unsqueeze(1)]
         for t in range(self.look_ahead):
-            x_t = x[:, t, :].clone().detach()
+            x_t = x[:, t, :].clone()
 
             x_t[:, self.replace_start:self.replace_end] = output
-            x_t = x_t.requires_grad_()
 
             self.lstm_layers_forward(x=x_t, h=h, c=c)
             output = self.final_dense_forward(h)
@@ -144,8 +151,14 @@ class DynamicsLookAheadModel(nn.Module):
         outputs = torch.cat(outputs, dim=1)
         return outputs
 
+    def get_device(self):
+        return next(self.parameters()).device
+
+    def is_cuda(self):
+        return next(self.parameters()).is_cuda
+
     def init_hidden(self):
-        device = next(self.parameters()).device
+        device = self.get_device()
         # Initial (h, c) for multilayer lstm
         return ([torch.zeros(self.batch_size, self.hidden_size).to(device) for i in range(self.n_layers)],
                 [torch.zeros(self.batch_size, self.hidden_size).to(device) for i in range(self.n_layers)])
