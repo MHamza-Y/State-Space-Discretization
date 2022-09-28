@@ -1,5 +1,4 @@
 import gym
-import numpy as np
 
 from ray.rllib.evaluation.sample_batch_builder import SampleBatchBuilder
 from ray.rllib.offline.json_writer import JsonWriter
@@ -24,8 +23,7 @@ class GymEnvSampler:
         for eps_id in range(self.episodes):
             print(f"Episode: {eps_id}")
             obs = self.env.reset()
-            prev_action = np.zeros_like(self.env.action_space.sample())
-            prev_reward = 0
+
             done = False
             t = 0
             while not done:
@@ -33,22 +31,12 @@ class GymEnvSampler:
                 new_obs, rew, done, info = self.env.step(action)
 
                 batch_builder.add_values(
-                    t=t,
-                    eps_id=eps_id,
-                    agent_index=0,
                     obs=obs,
                     actions=action,
-                    action_prob=1.0,  # put the true action probability here
-                    action_logp=0.0,
                     rewards=rew,
-                    prev_actions=prev_action,
-                    prev_rewards=prev_reward,
                     dones=done,
-                    infos=info,
                     new_obs=new_obs,
                 )
                 obs = new_obs
-                prev_action = action
-                prev_reward = rew
                 t += 1
             writer.write(batch_builder.build_and_reset())

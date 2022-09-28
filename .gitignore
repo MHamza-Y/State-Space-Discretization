@@ -2,4 +2,7 @@ venv
 tmp
 .idea
 *.h5
+*.pkl
 /.ipynb_checkpoints/
+/dynamic_model/model
+/dynamic_model/model_dict

@@ -1,7 +1,8 @@
-import gym
-import numpy as np
 from collections import OrderedDict
 
+import gym
+import numpy as np
+import torch
 from industrial_benchmark_python.IDS import IDS
 
 
@@ -9,6 +10,7 @@ class IBGymModded(gym.Env):
     """
     OpenAI Gym Wrapper for the industrial benchmark
     """
+
     def __init__(self, setpoint, reward_type, action_type, observation_type="classic", reset_after_timesteps=1000,
                  init_seed=None, n_past_timesteps=30):
         """
@@ -251,3 +253,119 @@ class IBGymModded(gym.Env):
 
         info = OrderedDict(zip(markovian_states_variables, markovian_states_values))
         return info
+
+
+class IBGymQ(IBGymModded):
+
+    def __init__(self, q_model, normalize_transformer, device='cpu', **kwargs):
+        self.q_model = q_model
+        self.device = device
+        self.P = {}
+        self.normalize_transformer = normalize_transformer
+        super().__init__(**kwargs)
+
+    def reset(self):
+        """
+                resets environment
+                :return: first observation of fresh environment
+                """
+
+        # ensure reproducibility, but still use different env / seed on every reset
+        self.IB = IDS(self.setpoint, inital_seed=self.init_seed)
+        self.init_seed = np.random.randint(0, 100000)
+
+        # if multiple timesteps in a single observation (time embedding), need list
+        if self.observation_type == "include_past":
+            self.observation = []
+
+        return_observation = self._update_observation()
+
+        self.info = self._markovian_state()
+        self.reward = -self.IB.state['cost']
+
+        # Alternative reward that returns the improvement or decrease in the cost function
+        # If the cost function improves/decreases, the reward is positive
+        # If the cost function deteriorates/increases, the reward is negative
+        # e.g.: -400 -> -450 = delta_reward of -50
+        self.delta_reward = 0
+
+        # smoother reward function for monitoring the agent & environment with lower variance
+        # Updates with a convex combination of old and new cost
+        self.smoothed_reward = self.reward
+
+        # used to set the self.done variable - If larger than self.reset_after_timesteps, the environment resets
+        self.env_steps = 0
+
+        # whether or not the trajectory has ended
+        self.done = False
+
+        return self.quantized_state(return_observation)
+
+    def step(self, action):
+        """
+             performs one step in the environment by taking the specified action and returning the resulting observation
+             :param action: the action to be taken
+             :return: the new observation
+             """
+
+        # when the done flag has been set and the user still calls step, we want to at least reset the environment
+        if self.done:
+            self.reset()
+
+        # keep the current action around for potential rendering
+        self.last_action = action
+
+        # Executing the action and saving the observation
+        if self.action_type == 'discrete':
+            self.IB.step(self.env_action[action])  # for discrete actions, we expect the action's index
+        elif self.action_type == 'continuous':
+            self.IB.step(action)  # in the continuous case, we expect the entire three dimensional action
+
+        # update observation representation
+        return_observation = self._update_observation()
+
+        # Calculating both the relative reward (improvement or decrease) and updating the absolute reward
+        new_reward = -self.IB.state['cost']
+        self.delta_reward = new_reward - self.reward  # positive when improved
+        self.reward = new_reward
+
+        # Due to the very high stochasticity a smoothed reward function can be easier to follow visually
+        self.smoothed_reward = 0.9 * self.smoothed_reward + 0.1 * self.reward
+
+        # Stopping condition
+        self.env_steps += 1
+        if self.env_steps >= self.reset_after_timesteps:
+            self.done = True
+
+        # Two reward functions are available:
+        # 'classic' which returns the original cost and
+        # 'delta' which returns the change in the cost function w.r.t. the previous cost
+        if self.reward_function == 'classic':
+            return_reward = self.reward
+        elif self.reward_function == 'delta':
+            return_reward = self.delta_reward
+        else:
+            raise ValueError('Invalid reward function specification. "classic" for the original cost function'
+                             ' or "delta" for the change in the cost fucntion between steps.')
+
+        self.info = self._markovian_state()  # entire markov state - not all info is visible in observations
+        q_state = self.quantized_state(return_observation)
+
+        self.update_P(q_state)
+        self.last_q_state = q_state
+        return q_state, return_reward, self.done, self.info
+
+    def quantized_state(self, last_obs):
+
+        x = last_obs.reshape((-1, 6)).astype(np.float32)
+        x = torch.from_numpy(x).to(self.device)
+        x = x.unsqueeze(0)
+        x = self.normalize_transformer.transform(x)
+        x = torch.nan_to_num(x, 1)
+        self.q_model(x)
+        quantized_state_array = self.q_model.quantized_state.detach()[0].type(torch.bool).tolist()
+        return sum(v << i for i, v in enumerate(quantized_state_array[::-1]))
+
+    def update_P(self, q_state):
+        if not q_state in self.P:
+            self.P[q_state] = {a: [] for a in range(self.action_space.n)}

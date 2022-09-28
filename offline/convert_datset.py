@@ -30,18 +30,17 @@ def save_json(out_path, data):
         json.dump(data, f)
 
 
-def merge_rllib_out(rllib_files, out_path):
+def merge_rllib_out(rllib_files):
     data = load_rllib_dataset(rllib_files)
     mod_data = {}
     for obj in data:
         for key, value in obj.items():
             if key not in "type":
                 if key in mod_data:
-                    mod_data[key].extend(value)
+                    mod_data[key] = np.append(mod_data[key], value, axis=0)
                 else:
                     mod_data[key] = value
-
-    save_json(out_path, mod_data)
+    return mod_data
 
 
 def covert_episode_input(input_array, input_steps, output_steps):

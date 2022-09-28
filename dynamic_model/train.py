@@ -2,6 +2,7 @@ from time import time
 
 import torch
 from torch.nn.utils.clip_grad import clip_grad_norm_
+from torch.optim.lr_scheduler import MultiStepLR
 
 
 def train_step(data_loader, model, loss_function, optimizer, load_to_gpu):
@@ -49,11 +50,13 @@ def test_step(data_loader, model, loss_function, load_to_gpu):
 
 
 def train_model(model, test_loader, train_loader, loss_function=None, optimizer=None, learning_rate=0.001, n_epochs=10,
-                load_to_gpu=False):
+                load_to_gpu=False, gamma=0.1, lr_milestones=[25]):
     if loss_function is None:
         loss_function = torch.nn.MSELoss()
     if optimizer is None:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+    scheduler = MultiStepLR(optimizer, milestones=lr_milestones, gamma=gamma)
 
     print("Untrained test\n--------")
     test_step(test_loader, model, loss_function, load_to_gpu=load_to_gpu)
@@ -64,6 +67,8 @@ def train_model(model, test_loader, train_loader, loss_function=None, optimizer=
         print(f"Epoch {ix_epoch}\n---------")
         train_step(train_loader, model, loss_function, optimizer=optimizer, load_to_gpu=load_to_gpu)
         test_step(test_loader, model, loss_function, load_to_gpu=load_to_gpu)
+        scheduler.step()
+        print(f'lr: {scheduler.get_last_lr()}')
         end_time = time()
         epoch_time = end_time - start_time
         print(f"Epoch time: {epoch_time = :.3f}s")

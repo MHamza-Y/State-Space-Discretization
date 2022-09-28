@@ -7,4 +7,5 @@ industrial_benchmark_python
 ray[all]
 gym==0.21
 torch==1.12.0+cu116
+dill
  --extra-index-url https://download.pytorch.org/whl/cu116
