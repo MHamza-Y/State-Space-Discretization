@@ -4,5 +4,6 @@ tmp
 *.h5
 *.pkl
 /.ipynb_checkpoints/
-/dynamic_model/model
-/dynamic_model/model_dict
+/state_quantization/model
+/state_quantization/model_dict
+*.png

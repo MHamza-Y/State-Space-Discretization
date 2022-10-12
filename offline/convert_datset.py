@@ -43,6 +43,22 @@ def merge_rllib_out(rllib_files):
     return mod_data
 
 
+def merge_rllib_out_filtered(rllib_files, filter_fn=None):
+    data = load_rllib_dataset(rllib_files)
+    mod_data = {}
+    for obj in data:
+        if filter_fn:
+            if not filter_fn(obj):
+                continue
+        for key, value in obj.items():
+            if key not in "type":
+                if key in mod_data:
+                    mod_data[key] = np.append(mod_data[key], value, axis=0)
+                else:
+                    mod_data[key] = value
+    return mod_data
+
+
 def covert_episode_input(input_array, input_steps, output_steps):
     converted_input = []
     for count, value in enumerate(input_array):

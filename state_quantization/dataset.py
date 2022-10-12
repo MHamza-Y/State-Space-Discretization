@@ -4,7 +4,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 from torch.utils.data.dataset import T_co
 
-from dynamic_model.transforms import NormalizeTransform
+from state_quantization.transforms import NormalizeTransform
 
 
 class DynamicsModelDataset(Dataset):

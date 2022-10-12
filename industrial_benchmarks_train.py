@@ -2,11 +2,11 @@ import ray.tune as tune
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.tune import register_env
 
-from IBGym_modified import IBGymModded
+from envs.IBGym_mod_envs import IBGymModded
 
 
 def env_creator(config):
-    return IBGymModded(70, reward_type='classic', action_type='continuous', reset_after_timesteps=1000)
+    return IBGymModded(70, reward_type='classic', action_type='discrete', reset_after_timesteps=1000)
 
 
 register_env("IBGym-v1", env_creator)

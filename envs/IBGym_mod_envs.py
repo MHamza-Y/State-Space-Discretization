@@ -5,6 +5,8 @@ import numpy as np
 import torch
 from industrial_benchmark_python.IDS import IDS
 
+from state_quantization.transforms import Bin2Dec
+
 
 class IBGymModded(gym.Env):
     """
@@ -260,8 +262,8 @@ class IBGymQ(IBGymModded):
     def __init__(self, q_model, normalize_transformer, device='cpu', **kwargs):
         self.q_model = q_model
         self.device = device
-        self.P = {}
         self.normalize_transformer = normalize_transformer
+        self.bin2dec = Bin2Dec()
         super().__init__(**kwargs)
 
     def reset(self):
@@ -351,8 +353,6 @@ class IBGymQ(IBGymModded):
         self.info = self._markovian_state()  # entire markov state - not all info is visible in observations
         q_state = self.quantized_state(return_observation)
 
-        self.update_P(q_state)
-        self.last_q_state = q_state
         return q_state, return_reward, self.done, self.info
 
     def quantized_state(self, last_obs):
@@ -363,9 +363,4 @@ class IBGymQ(IBGymModded):
         x = self.normalize_transformer.transform(x)
         x = torch.nan_to_num(x, 1)
         self.q_model(x)
-        quantized_state_array = self.q_model.quantized_state.detach()[0].type(torch.bool).tolist()
-        return sum(v << i for i, v in enumerate(quantized_state_array[::-1]))
-
-    def update_P(self, q_state):
-        if not q_state in self.P:
-            self.P[q_state] = {a: [] for a in range(self.action_space.n)}
+        return self.bin2dec(self.q_model.quantized_state).tolist()[0]

@@ -2,12 +2,13 @@ import dill
 import numpy as np
 import torch
 
+from base_algorithm.base_policies import Policy
+
 
 class MDPModel:
 
-    def __init__(self, states, next_states, actions, rewards, dones, device='cpu', reward_nan=-1000):
+    def __init__(self, states, next_states, actions, rewards, dones, device='cpu', reward_nan=-1000, sa_reward=False):
         self.device = device
-
         state_tr = np.array([states, next_states])
 
         self.index_to_state, state_tr_inverse_search = np.unique(state_tr, return_inverse=True)
@@ -19,12 +20,20 @@ class MDPModel:
         self.index_to_actions, action_inverse_search = np.unique(actions, return_inverse=True)
 
         self.total_samples = state_inverse_search.shape[0]
-        self.reward_function = self.compute_reward_table(rewards=rewards, state_inverse_search=state_inverse_search)
+        print('Computing Reward Function')
+        if sa_reward:
+            self.reward_function = self.compute_reward_table_sa(rewards=rewards,
+                                                                current_state_inverse_search=state_inverse_search,
+                                                                action_inverse_search=action_inverse_search)
+        else:
+            self.reward_function = self.compute_reward_table_s(rewards=rewards,
+                                                               current_state_inverse_search=state_inverse_search)
+        print('Computing Transition Model')
         self.transition_model = self.compute_state_transition_model(state_inverse_search,
                                                                     action_inverse_search,
                                                                     next_state_inverse_search)
-        self.transition_model = torch.nan_to_num(self.transition_model).to(device)
-        self.reward_function = torch.nan_to_num(self.reward_function, nan=reward_nan)
+        self.reward_function = torch.nan_to_num(self.reward_function, nan=rewards.min()).numpy()
+        self.transition_model = torch.nan_to_num(self.transition_model).numpy()
 
         self.state_to_index = {}
         for i, s in enumerate(self.index_to_state):
@@ -36,17 +45,32 @@ class MDPModel:
     def get_total_actions_count(self):
         return self.index_to_actions.shape[0]
 
-    def compute_reward_table(self, rewards, state_inverse_search):
+    def compute_reward_table_s(self, rewards, current_state_inverse_search):
         total_states = self.get_total_states_count()
-        total_rewards = torch.zeros([total_states], device=self.device)
-        state_encountered = torch.zeros([total_states], device=self.device)
+        total_rewards = torch.zeros([total_states], device=self.device, dtype=torch.float32)
+        state_action_encountered = torch.zeros([total_states], device=self.device, dtype=torch.int32)
 
         for i in range(self.total_samples):
-            state_index = state_inverse_search[i]
-            total_rewards[state_index] += rewards[i]
-            state_encountered[state_index] += 1
+            state_index = current_state_inverse_search[i]
 
-        return total_rewards / state_encountered
+            total_rewards[state_index] += rewards[i]
+            state_action_encountered[state_index] += 1
+
+        return total_rewards / state_action_encountered
+
+    def compute_reward_table_sa(self, rewards, current_state_inverse_search, action_inverse_search):
+        total_states = self.get_total_states_count()
+        total_actions = self.get_total_actions_count()
+        total_rewards = torch.zeros([total_states, total_actions], device=self.device)
+        state_action_encountered = torch.zeros([total_states, total_actions], device=self.device, dtype=torch.int32)
+
+        for i in range(self.total_samples):
+            state_index = current_state_inverse_search[i]
+            action_index = action_inverse_search[i]
+            total_rewards[state_index, action_index] += rewards[i]
+            state_action_encountered[state_index, action_index] += 1
+
+        return total_rewards / state_action_encountered
 
     def compute_state_transition_model(self, state_inverse_search,
                                        action_inverse_search, next_state_inverse_search):
@@ -54,8 +78,9 @@ class MDPModel:
         total_actions = self.get_total_actions_count()
 
         total_state_action_next_state_transitions = torch.zeros(
-            [total_states, total_actions, total_states], device=self.device)
-        total_state_action_pair_encountered = torch.zeros([total_states, total_actions], device=self.device)
+            [total_states, total_actions, total_states], device=self.device, dtype=torch.int32)
+        total_state_action_pair_encountered = torch.zeros([total_states, total_actions], device=self.device,
+                                                          dtype=torch.int32)
 
         for i in range(self.total_samples):
             state_index = state_inverse_search[i]
@@ -68,18 +93,6 @@ class MDPModel:
         return total_state_action_next_state_transitions / total_state_action_pair_encountered.view(
             total_states, total_actions, 1)
 
-
-class Policy:
-
-    def __init__(self, policy_table, state_to_index, index_to_action):
-        self.policy_table = policy_table
-        self.state_to_index = state_to_index
-        self.index_to_action = index_to_action
-
-    def get_action(self, state):
-        action_index = self.policy_table[self.state_to_index[state]]
-        return self.index_to_action[action_index]
-
     def save(self, save_path):
         with open(save_path, 'wb') as f:
             dill.dump(self, f)
@@ -88,3 +101,29 @@ class Policy:
     def load(cls, save_path):
         with open(save_path, 'rb') as f:
             return dill.load(f)
+
+
+def find_nearest(arr, value):
+    arr = np.asarray(arr)
+    diff_arr = arr - value
+    idx = np.abs(diff_arr).argmin()
+    return arr[idx]
+
+
+class DPPolicy(Policy):
+
+    def __init__(self, policy_table, state_to_index, index_to_action, use_random=False):
+        self.policy_table = policy_table
+        self.state_to_index = state_to_index
+        self.index_to_action = index_to_action
+        self.saved_states = list(self.state_to_index.keys())
+        self.use_random = use_random
+
+    def get_action(self, state):
+
+        if state not in self.state_to_index and self.use_random:
+            action = np.random.choice(self.index_to_action)
+        else:
+            action_index = self.policy_table[self.state_to_index[state]]
+            action = self.index_to_action[action_index]
+        return action
