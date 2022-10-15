@@ -1,11 +1,27 @@
 from time import time
 
 import torch
+from torch.utils.tensorboard import SummaryWriter
 
 from state_quantization.forcasting_quantization_models import ForcastingQuant
 
 
 class Trainer:
+
+    def __init__(self, model, train_loader, test_loader, load_to_gpu, comment):
+        self.writer = SummaryWriter(comment=comment)
+        self.model = model
+        self.train_loader = train_loader
+        self.test_loader = test_loader
+        self.load_to_gpu = load_to_gpu
+        self.update_graph()
+
+    def update_graph(self):
+        for X, y in self.train_loader:
+            if self.load_to_gpu:
+                X, y = X.cuda(non_blocking=True), y.cuda(non_blocking=True)
+            self.writer.add_graph(model=self.model, input_to_model=X)
+            break
 
     def training_step(self):
         raise NotImplementedError
@@ -33,6 +49,7 @@ class Trainer:
             self.training_step()
             self.evaluation_step()
             self.post_epoch_hook()
+            self.writer.flush()
             end_time = time()
             epoch_time = end_time - start_time
             print(f"Epoch time: {epoch_time = :.3f}s")
@@ -40,13 +57,12 @@ class Trainer:
 
 class ForcastingQuantTrainer(Trainer):
     def __init__(self, forcasting_quant_model: ForcastingQuant, train_loader, test_loader, autoencoder_training_start,
-                 load_to_gpu=False,
-                 forcasting_loss_function=None, forecasting_optimizer=None, forecasting_learning_rate=1e-4,
-                 forecasting_lr_scheduler=None,
-                 autoencoder_lr_scheduler=None,
-                 autoencoder_learning_rate=1e-4,
-                 autoencoder_loss_function=None, autoencoder_optimizer=None):
+                 load_to_gpu=False, forcasting_loss_function=None, forecasting_optimizer=None,
+                 forecasting_learning_rate=1e-4, forecasting_lr_scheduler=None, autoencoder_lr_scheduler=None,
+                 autoencoder_learning_rate=1e-4, autoencoder_loss_function=None, autoencoder_optimizer=None):
 
+        comment = f'model={forcasting_quant_model.__class__},forecasting_learning_rate={forecasting_learning_rate},autoencoder_learning_rate={autoencoder_learning_rate}'
+        super().__init__(forcasting_quant_model, train_loader, test_loader, load_to_gpu, comment)
         self.model = forcasting_quant_model
         self.train_loader = train_loader
         self.test_loader = test_loader
@@ -94,6 +110,7 @@ class ForcastingQuantTrainer(Trainer):
                 forecasting_loss.backward()
                 self.forecasting_optimizer.step()
                 total_forecasting_loss += forecasting_loss.item()
+                self.writer.add_scalar("Forecasting/train/loss", forecasting_loss, self.epoch)
             else:
 
                 autoencoder_loss = self.autoencoder_loss_function(autoencoder_out, self.model.autoencoder_in)
@@ -101,6 +118,7 @@ class ForcastingQuantTrainer(Trainer):
                 autoencoder_loss.backward()
                 self.autoencoder_optimizer.step()
                 total_autoencoder_loss += autoencoder_loss.item()
+                self.writer.add_scalar("Autoencoder/train/loss", autoencoder_loss, self.epoch)
 
         print('--------------------------------------')
         if self.epoch < self.autoencoder_training_start:
@@ -121,14 +139,18 @@ class ForcastingQuantTrainer(Trainer):
                 if self.load_to_gpu:
                     X, y = X.cuda(non_blocking=True), y.cuda(non_blocking=True)
                 forcasting_out, autoencoder_out = self.model(X)
-                total_forecasting_loss += self.forcasting_loss_function(forcasting_out, y).item()
-                total_autoencoder_loss += self.autoencoder_loss_function(autoencoder_out,
-                                                                         self.model.autoencoder_in).item()
+                forecasting_loss = self.forcasting_loss_function(forcasting_out, y)
+                autoencoder_loss = self.autoencoder_loss_function(autoencoder_out,
+                                                                  self.model.autoencoder_in)
+                total_forecasting_loss += forecasting_loss.item()
+                total_autoencoder_loss += autoencoder_loss.item()
 
         print('--------------------------------------')
         if self.epoch < self.autoencoder_training_start:
             avg_forecasting_loss = total_forecasting_loss / num_batches
+            self.writer.add_scalar("Forecasting/Eval/loss", forecasting_loss, self.epoch)
             print(f"Forcasting Test loss: {avg_forecasting_loss}")
         else:
+            self.writer.add_scalar("Autoencoder/Eval/loss", autoencoder_loss, self.epoch)
             avg_autoencoder_loss = total_autoencoder_loss / num_batches
             print(f"Autoencoder Test loss: {avg_autoencoder_loss}")

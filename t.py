@@ -1,7 +1,9 @@
-import matplotlib.pyplot as plt
-import numpy as np
+import torch
+from torch.utils.tensorboard import SummaryWriter
 
-epsilon = np.linspace(500, 1, 500)
-epsilon = np.logspace(np.log(0.9), np.log(0.01), 1000, base=np.exp(1))
-plt.plot(epsilon)
-plt.show()
+writer = SummaryWriter()
+
+model_path = 'state_quantization/model'
+
+model_dict_path = 'state_quantization/model_dict.pt'
+model = torch.load(model_path)

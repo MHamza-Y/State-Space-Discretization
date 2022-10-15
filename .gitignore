@@ -7,3 +7,6 @@ tmp
 /state_quantization/model
 /state_quantization/model_dict
 *.png
+*.pt
+*.onnx
+runs
