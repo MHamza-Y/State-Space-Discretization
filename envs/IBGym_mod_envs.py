@@ -2,7 +2,6 @@ from collections import OrderedDict
 
 import gym
 import numpy as np
-import torch
 from industrial_benchmark_python.IDS import IDS
 
 from state_quantization.transforms import Bin2Dec
@@ -259,10 +258,10 @@ class IBGymModded(gym.Env):
 
 class IBGymQ(IBGymModded):
 
-    def __init__(self, q_model, normalize_transformer, device='cpu', **kwargs):
+    def __init__(self, q_model, lstm_quantize, device='cpu', **kwargs):
         self.q_model = q_model
         self.device = device
-        self.normalize_transformer = normalize_transformer
+        self.lstm_quantize = lstm_quantize
         self.bin2dec = Bin2Dec()
         super().__init__(**kwargs)
 
@@ -301,7 +300,7 @@ class IBGymQ(IBGymModded):
         # whether or not the trajectory has ended
         self.done = False
 
-        return self.quantized_state(return_observation)
+        return self.lstm_quantize(return_observation)[0]
 
     def step(self, action):
         """
@@ -351,16 +350,7 @@ class IBGymQ(IBGymModded):
                              ' or "delta" for the change in the cost fucntion between steps.')
 
         self.info = self._markovian_state()  # entire markov state - not all info is visible in observations
-        q_state = self.quantized_state(return_observation)
-
+        q_state = self.lstm_quantize(return_observation)[0]
         return q_state, return_reward, self.done, self.info
 
-    def quantized_state(self, last_obs):
 
-        x = last_obs.reshape((-1, 6)).astype(np.float32)
-        x = torch.from_numpy(x).to(self.device)
-        x = x.unsqueeze(0)
-        x = self.normalize_transformer.transform(x)
-        x = torch.nan_to_num(x, 1)
-        self.q_model(x)
-        return self.bin2dec(self.q_model.quantized_state).tolist()[0]

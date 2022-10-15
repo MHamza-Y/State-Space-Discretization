@@ -51,10 +51,14 @@ class QLearning:
         self.mean_train_reward_per_epoch = []
         self.eval_rewards_per_epoch = []
         self.eval_new_state_found = []
+        self.eval_trajectories = []
 
-    def train(self, epochs, alpha, gamma, epsilon, env_creator, env_kwargs, reward_offset=0):
+    def train(self, epochs, alpha, gamma, epsilon, env_creator, env_kwargs, reward_offset=0, graph=True,
+              show_reward_type='mean'):
         epsilon = np.array(epsilon)
         epsilon_is_arr = epsilon.size > 1
+        alpha = np.array(alpha)
+        alpha_is_arr = alpha.size > 1
         env = env_creator(**env_kwargs)
         self.mean_train_reward_per_epoch = []
         if not self.policy:
@@ -67,6 +71,14 @@ class QLearning:
             done = False
             total_reward = 0
             total_steps = 0
+            if alpha_is_arr:
+                if i < alpha.size:
+                    current_alpha = alpha[i]
+                else:
+                    current_alpha = alpha[-1]
+            else:
+                current_alpha = alpha
+
             if epsilon_is_arr:
                 if i < epsilon.size:
                     current_eps = epsilon[i]
@@ -89,23 +101,30 @@ class QLearning:
                 old_value = self.policy.get_q_value(state=state, action=action)
                 next_max = self.policy.get_max_q_value(next_state)
 
-                new_value = (1 - alpha) * old_value + alpha * (reward + reward_offset + gamma * next_max)
+                new_value = (1 - current_alpha) * old_value + current_alpha * (
+                        reward + reward_offset + gamma * next_max)
                 self.policy.update_q_value(state=state, action=action, new_value=new_value)
 
                 state = next_state
 
                 total_steps += 1
-            self.mean_train_reward_per_epoch.append(total_reward / total_steps)
-            clear_output(wait=False)
-            plt.plot(self.mean_train_reward_per_epoch)
-            plt.show()
+            if show_reward_type is 'mean':
+                self.mean_train_reward_per_epoch.append(total_reward / total_steps)
+            else:
+                self.mean_train_reward_per_epoch.append(total_reward)
+            if graph:
+                clear_output(wait=False)
+                plt.plot(self.mean_train_reward_per_epoch)
+                plt.show()
             print(f'Episode {i} Reward: {self.mean_train_reward_per_epoch[-1]}')
             print(f'Total States: {len(self.policy.q_table.keys())}')
 
-    def evaluate(self, epochs, env_creator, env_kwargs):
+    def evaluate(self, epochs, env_creator, env_kwargs, render=False, show_reward_type='mean'):
+        self.eval_trajectories = []
         env = env_creator(**env_kwargs)
         self.eval_rewards_per_epoch = []
         for i in range(epochs):
+            episode = {'obs': [], 'next_obs': [], 'rewards': [], 'actions': []}
             state = env.reset()
 
             new_state_found = False
@@ -113,19 +132,31 @@ class QLearning:
             total_reward = 0
             total_steps = 0
             while not done:
+                episode['obs'].append(state)
                 if self.policy.state_in_q_table(state):
                     action = self.policy.get_action(state)
                 else:
                     action = env.action_space.sample()
                     new_state_found = True
+
+                episode['actions'].append(action)
                 state, reward, done, info = env.step(action)
+                episode['next_obs'].append(state)
+                episode['rewards'].append(reward)
+
+                if render:
+                    env.render()
 
                 epochs += 1
 
                 total_reward += reward
                 total_steps += 1
 
-            self.eval_rewards_per_epoch.append(total_reward / total_steps)
+            if show_reward_type is 'mean':
+                self.eval_rewards_per_epoch.append(total_reward / total_steps)
+            else:
+                self.eval_rewards_per_epoch.append(total_reward)
+            self.eval_trajectories.append(episode)
             self.eval_new_state_found.append(new_state_found)
             clear_output(wait=False)
             print(f'Episode {i} Reward: {self.eval_rewards_per_epoch[-1]}')

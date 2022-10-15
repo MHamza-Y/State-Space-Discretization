@@ -57,7 +57,7 @@ class GymEnvSamplerProcess(Process):
             t = 0
             eps_total_reward = 0
             while not done:
-                action = self.policy.get_action(state=obs)
+                action = self.policy.get_action(obs)
                 new_obs, rew, done, info = self.env.step(action)
 
                 self.batch_builder.add_values(

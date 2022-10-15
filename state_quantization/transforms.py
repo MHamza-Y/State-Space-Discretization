@@ -46,28 +46,36 @@ class Bin2Dec:
         return torch.sum(mask * binary_array, -1)
 
 
-class QuantizeObs:
+class LSTMQuantize:
 
-    def __init__(self, model: ForcastingDiscFinalState, keys, normalize_transformer, reshape):
+    def __init__(self, model: ForcastingDiscFinalState, normalize_transformer, reshape):
         self.model = model
-        self.keys = keys
+
         self.reshape = reshape
         self.bin2dec = Bin2Dec()
         self.device = model.get_device()
         self.normalize_transformer = normalize_transformer
 
-    def quantize(self, x):
+    def __call__(self, x):
         x = np.array(x).astype(np.float32)
+
         x = torch.from_numpy(x).to(self.device)
         x = x.view(self.reshape)
+        x = torch.flip(x, [1])
         x = self.normalize_transformer.transform(x)
         x = torch.nan_to_num(x, 1)
         self.model(x)
         return self.bin2dec(self.model.quantized_state).tolist()
 
+
+class QuantizeBuffer:
+    def __init__(self, lstm_quantize, keys):
+        self.keys = keys
+        self.lstm_quantize = lstm_quantize
+
     def __call__(self, buffer):
         for key in self.keys:
-            buffer[key] = self.quantize(buffer[key])
+            buffer[key] = self.lstm_quantize(buffer[key])
         return buffer
 
 
@@ -76,7 +84,8 @@ def quantize_transform_creator(device, keys, reshape=(-1, -1, 6)):
 
     model = torch.load(model_path).to(device)
     model.eval()
-    model.look_ahead = 0
+    model.set_look_ahead(0)
     normalize_dataset = NormalizeTransform.load('state_quantization/NormalizeInputConfigs.pkl')
     normalize_dataset.to(device)
-    return QuantizeObs(model=model, keys=keys, normalize_transformer=normalize_dataset, reshape=reshape)
+    lstm_quantize = LSTMQuantize(model=model, normalize_transformer=normalize_dataset, reshape=reshape)
+    return QuantizeBuffer(lstm_quantize=lstm_quantize, keys=keys)

@@ -63,6 +63,8 @@ class LSTMForcasting(nn.Module):
 
         layers.append(nn.Linear(in_features=last_out, out_features=self.out_size))
 
+        layers = nn.Sequential(*layers)
+
         return layers
 
     def lstm_layers_forward(self, x, h, c):
@@ -74,11 +76,7 @@ class LSTMForcasting(nn.Module):
             layer_input = h[layer_idx]
 
     def final_dense_forward(self, x):
-        last_out = x
-        for layer in self.fully_connected_layers:
-            last_out = layer(last_out)
-
-        return last_out
+        return self.fully_connected_layers(x)
 
     def forward(self, x):
         outputs = []
@@ -102,6 +100,12 @@ class LSTMForcasting(nn.Module):
 
         outputs = torch.cat(outputs, dim=1)
         return outputs
+
+    def set_look_ahead(self, look_ahead):
+        self.look_ahead = look_ahead
+
+    def get_seq_len(self):
+        return self.seq_len
 
     def get_device(self):
         return next(self.parameters()).device

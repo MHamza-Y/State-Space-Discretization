@@ -23,11 +23,12 @@ class Trainer:
         print("Untrained test\n--------")
         self.evaluation_step()
 
-        for ix_epoch in range(n_epochs):
+        for epoch in range(n_epochs):
+            self.epoch = epoch
             start_time = time()
             print('--------------------------------------')
             print('--------------------------------------')
-            print(f"Epoch {ix_epoch + 1}\n---------")
+            print(f"Epoch {epoch + 1}\n---------")
             self.pre_epoch_hook()
             self.training_step()
             self.evaluation_step()
@@ -38,7 +39,8 @@ class Trainer:
 
 
 class ForcastingQuantTrainer(Trainer):
-    def __init__(self, forcasting_quant_model: ForcastingQuant, train_loader, test_loader, load_to_gpu=False,
+    def __init__(self, forcasting_quant_model: ForcastingQuant, train_loader, test_loader, autoencoder_training_start,
+                 load_to_gpu=False,
                  forcasting_loss_function=None, forecasting_optimizer=None, forecasting_learning_rate=1e-4,
                  forecasting_lr_scheduler=None,
                  autoencoder_lr_scheduler=None,
@@ -66,6 +68,8 @@ class ForcastingQuantTrainer(Trainer):
         self.autoencoder_lr_scheduler = autoencoder_lr_scheduler
         self.autoencoder_loss_function = autoencoder_loss_function
         self.autoencoder_optimizer = autoencoder_optimizer
+        self.autoencoder_training_start = autoencoder_training_start
+        self.epoch = 0
 
     def post_epoch_hook(self):
         print('--------------------------------------')
@@ -84,24 +88,27 @@ class ForcastingQuantTrainer(Trainer):
             if self.load_to_gpu:
                 X, y = X.cuda(non_blocking=True), y.cuda(non_blocking=True)
             forcasting_out, autoencoder_out = self.model(X)
-            forecasting_loss = self.forcasting_loss_function(forcasting_out, y)
-            self.forecasting_optimizer.zero_grad()
-            forecasting_loss.backward()
-            self.forecasting_optimizer.step()
+            if self.epoch < self.autoencoder_training_start:
+                forecasting_loss = self.forcasting_loss_function(forcasting_out, y)
+                self.forecasting_optimizer.zero_grad()
+                forecasting_loss.backward()
+                self.forecasting_optimizer.step()
+                total_forecasting_loss += forecasting_loss.item()
+            else:
 
-            autoencoder_loss = self.autoencoder_loss_function(autoencoder_out, self.model.autoencoder_in)
-            self.autoencoder_optimizer.zero_grad()
-            autoencoder_loss.backward()
-            self.autoencoder_optimizer.step()
+                autoencoder_loss = self.autoencoder_loss_function(autoencoder_out, self.model.autoencoder_in)
+                self.autoencoder_optimizer.zero_grad()
+                autoencoder_loss.backward()
+                self.autoencoder_optimizer.step()
+                total_autoencoder_loss += autoencoder_loss.item()
 
-            total_forecasting_loss += forecasting_loss.item()
-            total_autoencoder_loss += autoencoder_loss.item()
-
-        avg_forecasting_loss = total_forecasting_loss / num_batches
-        avg_autoencoder_loss = total_autoencoder_loss / num_batches
         print('--------------------------------------')
-        print(f"Forcasting Train loss: {avg_forecasting_loss}")
-        print(f"Autoencoder Train loss: {avg_autoencoder_loss}")
+        if self.epoch < self.autoencoder_training_start:
+            avg_forecasting_loss = total_forecasting_loss / num_batches
+            print(f"Forcasting Train loss: {avg_forecasting_loss}")
+        else:
+            avg_autoencoder_loss = total_autoencoder_loss / num_batches
+            print(f"Autoencoder Train loss: {avg_autoencoder_loss}")
 
     def evaluation_step(self):
         num_batches = len(self.test_loader)
@@ -118,8 +125,10 @@ class ForcastingQuantTrainer(Trainer):
                 total_autoencoder_loss += self.autoencoder_loss_function(autoencoder_out,
                                                                          self.model.autoencoder_in).item()
 
-        avg_forecasting_loss = total_forecasting_loss / num_batches
-        avg_autoencoder_loss = total_autoencoder_loss / num_batches
         print('--------------------------------------')
-        print(f"Forcasting Test loss: {avg_forecasting_loss}")
-        print(f"Autoencoder Test loss: {avg_autoencoder_loss}")
+        if self.epoch < self.autoencoder_training_start:
+            avg_forecasting_loss = total_forecasting_loss / num_batches
+            print(f"Forcasting Test loss: {avg_forecasting_loss}")
+        else:
+            avg_autoencoder_loss = total_autoencoder_loss / num_batches
+            print(f"Autoencoder Test loss: {avg_autoencoder_loss}")

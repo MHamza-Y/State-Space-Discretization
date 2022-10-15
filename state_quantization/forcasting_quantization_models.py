@@ -23,3 +23,12 @@ class ForcastingQuant(nn.Module):
 
     def is_cuda(self):
         return next(self.parameters()).is_cuda
+
+    def set_look_ahead(self, look_ahead):
+        self.forcasting_model.look_ahead = look_ahead
+
+    def get_seq_len(self):
+        return self.forcasting_model.seq_len
+
+    def get_device(self):
+        return next(self.parameters()).device

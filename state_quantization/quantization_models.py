@@ -9,7 +9,10 @@ class ForcastingDiscFinalState(LSTMForcasting):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.final_lstm_layer_activation = StraightThroughEstimator()
+        self.final_lstm_layer_activation = nn.Sequential(
+            nn.Tanh(),
+            StraightThroughEstimator()
+        )
         self.quantized_state = []
 
     def forward(self, x):
@@ -48,8 +51,14 @@ class ForcastingDiscHC(LSTMForcasting):
         h_layers = nn.ModuleList()
         c_layers = nn.ModuleList()
         for layer_idx in range(self.n_layers):
-            h_layers.append(StraightThroughEstimator())
-            c_layers.append(StraightThroughEstimator())
+            h_layers.append(nn.Sequential(
+                nn.Tanh(),
+                StraightThroughEstimator()
+            ))
+            c_layers.append(nn.Sequential(
+                nn.Tanh(),
+                StraightThroughEstimator()
+            ))
         return h_layers, c_layers
 
     def lstm_layers_forward(self, x, h, c):
@@ -117,7 +126,8 @@ class ForcastingDiscFinalStateConst(ForcastingDiscFinalState):
         for i in range(self.seq_len):
             self.lstm_layers_forward(x=x[:, i, :], h=h, c=c)
 
-        output, self.quantized_state = self.final_dense_forward(h)
+        self.quantized_state = self.final_lstm_layer_activation(h[-1])
+        output = self.final_dense_forward(self.quantized_state)
 
         outputs += [output.unsqueeze(1)]
         for t in range(self.look_ahead):
@@ -131,7 +141,7 @@ class DiscAutoEncoder(nn.ModuleList):
     def __init__(self, input_size, bottleneck_size, encoder_hidden_shape=None, decoder_hidden_shape=None, dropout=0.2):
         super().__init__()
         if encoder_hidden_shape is None:
-            encoder_hidden_shape = [input_size, input_size // 2]
+            encoder_hidden_shape = [input_size, input_size // 2, input_size // 4]
         if decoder_hidden_shape is None:
             decoder_hidden_shape = encoder_hidden_shape[::-1]
 
@@ -168,6 +178,7 @@ class DiscAutoEncoder(nn.ModuleList):
             last_out = enc_layer
 
         bottleneck_layers.append(nn.Linear(in_features=last_out, out_features=self.bottleneck_size))
+        bottleneck_layers.append(nn.Tanh())
         bottleneck_layers.append(StraightThroughEstimator())
         last_out = self.bottleneck_size
 
@@ -178,22 +189,17 @@ class DiscAutoEncoder(nn.ModuleList):
             last_out = dec_layer
 
         decoder_layers.append(nn.Linear(in_features=last_out, out_features=self.input_size))
+        encoder_layers = nn.Sequential(*encoder_layers)
+        decoder_layers = nn.Sequential(*decoder_layers)
+        bottleneck_layers = nn.Sequential(*bottleneck_layers)
 
         return encoder_layers, bottleneck_layers, decoder_layers
 
     def forward(self, x):
 
-        enc_out = x
-        for enc_layer in self.encoder_layers:
-            enc_out = enc_layer(enc_out)
-
-        b_out = enc_out
-        for b_layer in self.bottleneck_layers:
-            b_out = b_layer(b_out)
-
+        enc_out = self.encoder_layers(x)
+        b_out = self.bottleneck_layers(enc_out)
         self.bottleneck_out = b_out
-        dec_out = b_out
-        for dec_layer in self.decoder_layers:
-            dec_out = dec_layer(dec_out)
+        dec_out = self.decoder_layers(b_out)
 
         return dec_out
