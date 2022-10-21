@@ -8,7 +8,7 @@ from ray.rllib.offline.json_writer import JsonWriter
 from torch.multiprocessing import Process, set_start_method, Value
 
 from base_algorithm.base_policies import RandomPolicy
-from offline.convert_datset import merge_rllib_out, save_numpy
+from offline_dataset.convert_datset import merge_rllib_out, save_numpy
 
 try:
     set_start_method('spawn')

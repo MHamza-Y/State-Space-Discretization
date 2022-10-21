@@ -2,6 +2,7 @@ jupyter
 scikit-learn
 tensorflow
 tables
+seaborn
 tqdm
 industrial_benchmark_python
 ray[all]

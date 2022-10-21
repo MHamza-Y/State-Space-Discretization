@@ -123,7 +123,7 @@ class PolicyIterationTorch:
             print(delta)
         return delta
 
-    def run_policy_evaluation(self, tol=1e-3):
+    def run_policy_evaluation(self, tol=1e-9):
         epoch = 0
         delta = self.one_policy_evaluation()
         delta_history = [delta]

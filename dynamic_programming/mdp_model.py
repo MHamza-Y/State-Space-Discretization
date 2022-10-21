@@ -1,8 +1,8 @@
+import os
+
 import dill
 import numpy as np
 import torch
-
-from base_algorithm.base_policies import Policy
 
 
 class MDPModel:
@@ -29,6 +29,7 @@ class MDPModel:
             self.reward_function = self.compute_reward_table_s(rewards=rewards,
                                                                current_state_inverse_search=state_inverse_search)
         print('Computing Transition Model')
+        self.N_D_sa = self.compute_state_action_pair_count()
         self.transition_model = self.compute_state_transition_model(state_inverse_search,
                                                                     action_inverse_search,
                                                                     next_state_inverse_search)
@@ -48,15 +49,15 @@ class MDPModel:
     def compute_reward_table_s(self, rewards, current_state_inverse_search):
         total_states = self.get_total_states_count()
         total_rewards = torch.zeros([total_states], device=self.device, dtype=torch.float32)
-        state_action_encountered = torch.zeros([total_states], device=self.device, dtype=torch.int32)
+        state_encountered = torch.zeros([total_states], device=self.device, dtype=torch.int32)
 
         for i in range(self.total_samples):
             state_index = current_state_inverse_search[i]
 
             total_rewards[state_index] += rewards[i]
-            state_action_encountered[state_index] += 1
+            state_encountered[state_index] += 1
 
-        return total_rewards / state_action_encountered
+        return total_rewards / state_encountered
 
     def compute_reward_table_sa(self, rewards, current_state_inverse_search, action_inverse_search):
         total_states = self.get_total_states_count()
@@ -94,6 +95,7 @@ class MDPModel:
             total_states, total_actions, 1)
 
     def save(self, save_path):
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         with open(save_path, 'wb') as f:
             dill.dump(self, f)
 
@@ -102,28 +104,5 @@ class MDPModel:
         with open(save_path, 'rb') as f:
             return dill.load(f)
 
-
-def find_nearest(arr, value):
-    arr = np.asarray(arr)
-    diff_arr = arr - value
-    idx = np.abs(diff_arr).argmin()
-    return arr[idx]
-
-
-class DPPolicy(Policy):
-
-    def __init__(self, policy_table, state_to_index, index_to_action, use_random=False):
-        self.policy_table = policy_table
-        self.state_to_index = state_to_index
-        self.index_to_action = index_to_action
-        self.saved_states = list(self.state_to_index.keys())
-        self.use_random = use_random
-
-    def get_action(self, state):
-
-        if state not in self.state_to_index and self.use_random:
-            action = np.random.choice(self.index_to_action)
-        else:
-            action_index = self.policy_table[self.state_to_index[state]]
-            action = self.index_to_action[action_index]
-        return action
+    def compute_state_action_pair_count(self):
+        pass
