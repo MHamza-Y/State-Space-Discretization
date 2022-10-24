@@ -1,3 +1,4 @@
+import numpy as np
 from IPython.core.display_functions import clear_output
 from matplotlib import pyplot as plt
 
@@ -56,3 +57,5 @@ class EvalDiscreteStatePolicy:
             print(f'Episode {i} Reward: {self.eval_rewards_per_epoch[-1]} || New State Found: {new_state_found}')
             plt.plot(self.eval_rewards_per_epoch)
             plt.show()
+        print(f'Reward Mean: {np.mean(self.eval_rewards_per_epoch)}')
+        print(f'Reward std : {np.std(self.eval_rewards_per_epoch)}')

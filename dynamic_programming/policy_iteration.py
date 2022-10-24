@@ -80,7 +80,7 @@ class PolicyIteration:
         print(f'eval count = {eval_count_history}')
         print(f'policy change = {policy_change_history}')
 
-        if plot is True:
+        if plot:
             fig, axes = plt.subplots(2, 1, figsize=(3.5, 4), sharex='all', dpi=200)
             axes[0].plot(np.arange(len(eval_count_history)), eval_count_history, marker='o', markersize=4, alpha=0.7,
                          color='#2ca02c', label='# sweep in \npolicy evaluation\n' + r'$\gamma =$' + f'{self.gamma}')

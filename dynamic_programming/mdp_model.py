@@ -30,11 +30,12 @@ class MDPModel:
                                                                current_state_inverse_search=state_inverse_search)
         print('Computing Transition Model')
         self.N_D_sa = self.compute_state_action_pair_count()
-        self.transition_model = self.compute_state_transition_model(state_inverse_search,
-                                                                    action_inverse_search,
-                                                                    next_state_inverse_search)
+        self.transition_model, self.count_state_action = self.compute_state_transition_model(state_inverse_search,
+                                                                                             action_inverse_search,
+                                                                                             next_state_inverse_search)
         self.reward_function = torch.nan_to_num(self.reward_function, nan=rewards.min()).numpy()
         self.transition_model = torch.nan_to_num(self.transition_model).numpy()
+        self.count_state_action = torch.nan_to_num(self.count_state_action).numpy()
 
         self.state_to_index = {}
         for i, s in enumerate(self.index_to_state):
@@ -80,8 +81,8 @@ class MDPModel:
 
         total_state_action_next_state_transitions = torch.zeros(
             [total_states, total_actions, total_states], device=self.device, dtype=torch.int32)
-        total_state_action_pair_encountered = torch.zeros([total_states, total_actions], device=self.device,
-                                                          dtype=torch.int32)
+        count_state_action = torch.zeros([total_states, total_actions], device=self.device,
+                                         dtype=torch.int32)
 
         for i in range(self.total_samples):
             state_index = state_inverse_search[i]
@@ -89,10 +90,10 @@ class MDPModel:
             next_state_index = next_state_inverse_search[i]
 
             total_state_action_next_state_transitions[state_index, action_index, next_state_index] += 1
-            total_state_action_pair_encountered[state_index, action_index] += 1
+            count_state_action[state_index, action_index] += 1
 
-        return total_state_action_next_state_transitions / total_state_action_pair_encountered.view(
-            total_states, total_actions, 1)
+        return total_state_action_next_state_transitions / count_state_action.view(
+            total_states, total_actions, 1), count_state_action
 
     def save(self, save_path):
         os.makedirs(os.path.dirname(save_path), exist_ok=True)

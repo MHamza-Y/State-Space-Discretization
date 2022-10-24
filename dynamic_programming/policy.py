@@ -10,7 +10,6 @@ class DPPolicy(DiscretePolicy):
         self.policy_table = policy_table
         self.state_to_index = state_to_index
         self.index_to_action = index_to_action
-        self.saved_states = list(self.state_to_index.keys())
 
     def get_action(self, state):
         action_index = self.policy_table[self.state_to_index[state]]
