@@ -79,9 +79,7 @@ class QuantizeBuffer:
         return buffer
 
 
-def quantize_transform_creator(device, keys, reshape=(-1, -1, 6)):
-    model_path = 'state_quantization/model'
-
+def quantize_transform_creator(model_path, device, keys, reshape=(-1, -1, 6)):
     model = torch.load(model_path).to(device)
     model.eval()
     model.set_look_ahead(0)

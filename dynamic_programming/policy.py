@@ -1,4 +1,4 @@
-from base_algorithm.base_policies import DiscretePolicy
+from base_rl.base_policies import DiscretePolicy
 
 
 class DPPolicy(DiscretePolicy):

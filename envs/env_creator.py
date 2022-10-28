@@ -4,8 +4,7 @@ from envs.IBGym_mod_envs import IBGymQ, IBGymModded
 from state_quantization.transforms import NormalizeTransform, LSTMQuantize
 
 
-def env_creator(config=None, device='cpu', steps_per_episode=1000):
-    model_path = 'state_quantization/model'
+def env_creator(model_path, device='cpu', steps_per_episode=1000):
     reshape = (1, -1, 6)
 
     model = torch.load(model_path).to(device)
