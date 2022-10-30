@@ -145,15 +145,11 @@ class DiscAutoEncoder(nn.ModuleList):
         if decoder_hidden_shape is None:
             decoder_hidden_shape = encoder_hidden_shape[::-1]
 
-        print(encoder_hidden_shape)
-        print(decoder_hidden_shape)
         self.encoder_hidden_shape = encoder_hidden_shape
         self.decoder_hidden_shape = decoder_hidden_shape
         self.input_size = input_size
         self.bottleneck_size = bottleneck_size
         self.dropout = dropout
-
-        self.layers = self.build_autoencoder_layers()
 
         self.encoder_layers, self.bottleneck_layers, self.decoder_layers = self.build_autoencoder_layers()
         self.bottleneck_out = []

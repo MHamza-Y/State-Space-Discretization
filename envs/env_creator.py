@@ -6,12 +6,9 @@ from state_quantization.transforms import NormalizeTransform, LSTMQuantize
 
 def env_creator(model_path, device='cpu', steps_per_episode=1000):
     reshape = (1, -1, 6)
-
     model = torch.load(model_path).to(device)
     model.eval()
     model.set_look_ahead(0)
-    print(model.__class__)
-    # model.share_memory()
     normalize_dataset = NormalizeTransform.load('state_quantization/NormalizeInputConfigs.pkl')
     normalize_dataset.to(device)
     lstm_quantize = LSTMQuantize(model=model, normalize_transformer=normalize_dataset, reshape=reshape)
