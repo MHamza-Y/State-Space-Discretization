@@ -256,10 +256,18 @@ class IBGymModded(gym.Env):
         return info
 
 
-class IBGymQ(IBGymModded):
-
+class IBGymModelQ(IBGymModded):
     def __init__(self, q_model, lstm_quantize, device='cpu', **kwargs):
         self.q_model = q_model
+        self.device = device
+        self.lstm_quantize = lstm_quantize
+        self.bin2dec = Bin2Dec()
+        super().__init__(**kwargs)
+
+
+class IBGymQ(IBGymModded):
+
+    def __init__(self, lstm_quantize, device='cpu', **kwargs):
         self.device = device
         self.lstm_quantize = lstm_quantize
         self.bin2dec = Bin2Dec()

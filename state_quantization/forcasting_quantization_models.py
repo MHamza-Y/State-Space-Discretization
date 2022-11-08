@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 
 from state_quantization.forcasting_models import LSTMForcasting
@@ -32,3 +33,23 @@ class ForcastingQuant(nn.Module):
 
     def get_device(self):
         return next(self.parameters()).device
+
+
+class EmbeddedAEForcastingQuant(LSTMForcasting):
+
+    def __init__(self, autoencoder_quant_model: DiscAutoEncoder, **kwargs):
+        super().__init__(**kwargs)
+        self.autoencoder_quant_model = autoencoder_quant_model
+        self.quantized_state = []
+        self.autoencoder_in = []
+
+    def lstm_layers_forward(self, x, h, c):
+        layer_input = x
+        for layer_idx in range(self.n_layers):
+            ae_in = torch.cat((h[layer_idx], c[layer_idx]), dim=1)
+            (h[layer_idx], c[layer_idx]) = torch.chunk(self.autoencoder_quant_model(ae_in), chunks=2, dim=1)
+            (h[layer_idx], c[layer_idx]) = self.lstm_layers[layer_idx](layer_input, (h[layer_idx], c[layer_idx]))
+
+            if layer_idx < self.n_layers - 1:
+                h[layer_idx] = self.lstm_dropout_layers[layer_idx](h[layer_idx])
+            layer_input = h[layer_idx]

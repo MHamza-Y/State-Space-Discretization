@@ -77,3 +77,13 @@ class QuantizeBuffer:
         for key in self.keys:
             buffer[key] = self.lstm_quantize(buffer[key])
         return buffer
+
+
+def quantize_transform_creator(model_path, device, keys, reshape=(-1, -1, 6)):
+    model = torch.load(model_path).to(device)
+    model.eval()
+    model.set_look_ahead(0)
+    normalize_dataset = NormalizeTransform.load('state_quantization/NormalizeInputConfigs.pkl')
+    normalize_dataset.to(device)
+    lstm_quantize = LSTMQuantize(model=model, normalize_transformer=normalize_dataset, reshape=reshape)
+    return QuantizeBuffer(lstm_quantize=lstm_quantize, keys=keys)

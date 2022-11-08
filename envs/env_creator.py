@@ -12,7 +12,7 @@ def env_creator(model_path, device='cpu', steps_per_episode=1000):
     normalize_dataset = NormalizeTransform.load('state_quantization/NormalizeInputConfigs.pkl')
     normalize_dataset.to(device)
     lstm_quantize = LSTMQuantize(model=model, normalize_transformer=normalize_dataset, reshape=reshape)
-    return IBGymQ(q_model=model, device=device, setpoint=70, reward_type='classic', action_type='discrete',
+    return IBGymQ(device=device, setpoint=70, reward_type='classic', action_type='discrete',
                   observation_type='include_past',
                   reset_after_timesteps=steps_per_episode, n_past_timesteps=model.get_seq_len(),
                   lstm_quantize=lstm_quantize)

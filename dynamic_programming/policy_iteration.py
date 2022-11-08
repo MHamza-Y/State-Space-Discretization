@@ -43,8 +43,8 @@ class PolicyIteration:
             delta = self.one_policy_evaluation()
             delta_history.append(delta)
             print(delta)
-            if delta < tol:
-                break
+            # if delta < tol:
+            #     break
         return len(delta_history)
 
     def run_policy_improvement(self):

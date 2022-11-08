@@ -107,3 +107,16 @@ class MDPModel:
 
     def compute_state_action_pair_count(self):
         pass
+
+
+def create_mdp_models(load_path, mdp_save_path, sa_reward, device):
+    samples = np.load(load_path, allow_pickle=True)[()]
+    mdp_model = MDPModel(states=samples['obs'], next_states=samples['new_obs'], actions=samples['actions'],
+                         rewards=samples['rewards'], dones=samples['dones'], device=device, sa_reward=sa_reward)
+    mdp_model.save(mdp_save_path)
+    print(mdp_save_path)
+    print(samples['rewards'].mean())
+    print(samples['rewards'].size)
+    samples['rewards'] = samples['rewards'] + np.abs(samples['rewards'].min())
+    print(samples['rewards'].min())
+    print(np.unique(samples['obs']).size)

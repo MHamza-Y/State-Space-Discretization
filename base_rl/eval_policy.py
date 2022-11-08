@@ -7,8 +7,9 @@ from base_rl.base_policies import DiscretePolicy
 
 class EvalDiscreteStatePolicy:
 
-    def __init__(self, env_creator, env_kwargs, policy):
+    def __init__(self, env_creator, env_kwargs, policy, tag=''):
         self.policy = policy
+        self.tag = tag
         self.eval_rewards_per_epoch = []
         self.eval_new_state_found = []
         self.eval_trajectories = []
