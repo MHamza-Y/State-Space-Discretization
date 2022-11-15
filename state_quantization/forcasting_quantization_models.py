@@ -35,6 +35,28 @@ class ForcastingQuant(nn.Module):
         return next(self.parameters()).device
 
 
+class ForcastingQuantInferenceWrapper(nn.Module):
+
+    def __init__(self, forcasting_quant_model: ForcastingQuant):
+        super().__init__()
+        self.model = forcasting_quant_model
+        self.quantized_state = []
+
+    def forward(self, x):
+        forcasting_out, _ = self.model(x)
+        self.quantized_state = self.model.quantized_state
+        return forcasting_out
+
+    def set_look_ahead(self, look_ahead):
+        self.model.set_look_ahead(look_ahead)
+
+    def get_device(self):
+        return next(self.parameters()).device
+
+    def get_seq_len(self):
+        return self.model.get_seq_len()
+
+
 class EmbeddedAEForcastingQuant(LSTMForcasting):
 
     def __init__(self, autoencoder_quant_model: DiscAutoEncoder, **kwargs):

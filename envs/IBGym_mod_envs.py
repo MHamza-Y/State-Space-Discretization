@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 import gym
 import numpy as np
+import torch
 from industrial_benchmark_python.IDS import IDS
 
 from state_quantization.transforms import Bin2Dec
@@ -257,12 +258,94 @@ class IBGymModded(gym.Env):
 
 
 class IBGymModelQ(IBGymModded):
-    def __init__(self, q_model, lstm_quantize, device='cpu', **kwargs):
-        self.q_model = q_model
+    def __init__(self, lstm_quantize, device='cpu', **kwargs):
         self.device = device
         self.lstm_quantize = lstm_quantize
         self.bin2dec = Bin2Dec()
+        self.observation = None
+        self.model_out = None
+        self.last_observation = None
+        self.v = 0
+        self.g = 0
+        self.h = 0
         super().__init__(**kwargs)
+
+    def reset(self):
+        """
+                resets environment
+                :return: first observation of fresh environment
+                """
+
+        # ensure reproducibility, but still use different env / seed on every reset
+        self.IB = IDS(self.setpoint, inital_seed=self.init_seed)
+        self.init_seed = np.random.randint(0, 100000)
+
+        # if multiple timesteps in a single observation (time embedding), need list
+        if self.observation_type == "include_past":
+            self.observation = []
+
+        return_observation = self._update_observation()
+
+        self.info = self._markovian_state()
+        self.reward = -self.IB.state['cost']
+
+        # Alternative reward that returns the improvement or decrease in the cost function
+        # If the cost function improves/decreases, the reward is positive
+        # If the cost function deteriorates/increases, the reward is negative
+        # e.g.: -400 -> -450 = delta_reward of -50
+        self.delta_reward = 0
+
+        # smoother reward function for monitoring the agent & environment with lower variance
+        # Updates with a convex combination of old and new cost
+        self.smoothed_reward = self.reward
+
+        # used to set the self.done variable - If larger than self.reset_after_timesteps, the environment resets
+        self.env_steps = 0
+
+        # whether or not the trajectory has ended
+        self.done = False
+        self.last_observation = return_observation
+        discrete_obs = self.lstm_quantize(return_observation)[0]
+        self.model_out = self.lstm_quantize.get_continuous_output()
+        self.v = self.last_observation[1]
+        self.g = self.last_observation[2]
+        self.h = self.last_observation[3]
+        return discrete_obs
+
+    def get_fatigue_consumption(self, model_output):
+        zero_padding = torch.zeros((model_output.shape[0], model_output.shape[1], 4)).to(self.device)
+        model_output = torch.cat((zero_padding, model_output), dim=-1)
+        transformed_output = self.lstm_quantize.normalize_transformer.inverse_transform(model_output)[0][
+            0].detach().cpu().numpy()
+        return transformed_output[-2], transformed_output[-1]
+
+    def step(self, action):
+        if self.done:
+            self.reset()
+
+        delta = self.env_action[action]
+        self.last_observation = np.roll(self.last_observation, 6)
+
+        self.v = np.clip(self.v + delta[0], 0., 100.)
+        self.g = np.clip(self.g + 10 * delta[1], 0., 100.)
+        self.h = np.clip(self.h + 5.75153434 * delta[2], 0., 100.)
+        fatigue, consumption = self.get_fatigue_consumption(self.model_out)
+        self.last_observation[0] = self.setpoint
+        self.last_observation[1] = self.v
+        self.last_observation[2] = self.g
+        self.last_observation[3] = self.h
+        self.last_observation[4] = fatigue
+        self.last_observation[5] = consumption
+
+        discrete_obs = self.lstm_quantize(self.last_observation)[0]
+        self.model_out = self.lstm_quantize.get_continuous_output()
+        reward = - consumption - 3 * fatigue
+
+        # Stopping condition
+        self.env_steps += 1
+        if self.env_steps >= self.reset_after_timesteps:
+            self.done = True
+        return discrete_obs, reward, self.done, None
 
 
 class IBGymQ(IBGymModded):
@@ -360,5 +443,3 @@ class IBGymQ(IBGymModded):
         self.info = self._markovian_state()  # entire markov state - not all info is visible in observations
         q_state = self.lstm_quantize(return_observation)[0]
         return q_state, return_reward, self.done, self.info
-
-

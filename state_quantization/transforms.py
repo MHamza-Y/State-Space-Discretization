@@ -50,11 +50,16 @@ class LSTMQuantize:
 
     def __init__(self, model: ForcastingDiscFinalState, normalize_transformer, reshape):
         self.model = model
+        self.model.eval()
 
         self.reshape = reshape
         self.bin2dec = Bin2Dec()
         self.device = model.get_device()
         self.normalize_transformer = normalize_transformer
+        self.y = None
+
+    def get_continuous_output(self):
+        return self.y
 
     def __call__(self, x):
         x = np.array(x).astype(np.float32)
@@ -64,7 +69,7 @@ class LSTMQuantize:
         x = torch.flip(x, [1])
         x = self.normalize_transformer.transform(x)
         x = torch.nan_to_num(x, 1)
-        self.model(x)
+        self.y = self.model(x)
         return self.bin2dec(self.model.quantized_state).tolist()
 
 

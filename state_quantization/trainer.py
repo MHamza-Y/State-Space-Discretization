@@ -58,7 +58,8 @@ class Trainer:
 class NNTrainer(Trainer):
     def __init__(self, model, train_loader, test_loader,
                  load_to_gpu=False, loss_function=None, optimizer=None,
-                 learning_rate=1e-4, lr_scheduler=None):
+                 learning_rate=1e-4, lr_scheduler=None, eval_loss_graph_tag='Model/Eval/loss',
+                 train_loss_graph_tag='Model/train/loss'):
 
         comment = f'model={model.__class__},learning_rate={learning_rate},lr_scheduler={lr_scheduler}'
         super().__init__(model, train_loader, test_loader, load_to_gpu, comment)
@@ -72,6 +73,8 @@ class NNTrainer(Trainer):
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
         self.epoch = 0
+        self.eval_loss_graph_tag = eval_loss_graph_tag
+        self.train_loss_graph_tag = train_loss_graph_tag
 
     def post_epoch_hook(self):
         print('--------------------------------------')
@@ -93,7 +96,7 @@ class NNTrainer(Trainer):
             loss.backward()
             self.optimizer.step()
             total_loss += loss.item()
-            self.writer.add_scalar("Model/train/loss", loss, self.epoch)
+            self.writer.add_scalar(self.train_loss_graph_tag, loss, self.epoch)
 
         print('--------------------------------------')
 
@@ -117,7 +120,7 @@ class NNTrainer(Trainer):
         print('--------------------------------------')
 
         avg_loss = total_loss / num_batches
-        self.writer.add_scalar("Model/Eval/loss", avg_loss, self.epoch)
+        self.writer.add_scalar(self.eval_loss_graph_tag, avg_loss, self.epoch)
         print(f"Model Test loss: {avg_loss}")
 
 
@@ -128,7 +131,7 @@ class ForcastingQuantTrainer(Trainer):
                  autoencoder_learning_rate=1e-4, autoencoder_loss_function=None, autoencoder_optimizer=None,
                  additional_eval_model=None):
 
-        comment = f'model={forcasting_quant_model.__class__},forecasting_learning_rate={forecasting_learning_rate},autoencoder_learning_rate={autoencoder_learning_rate}'
+        comment = f'model={forcasting_quant_model.__class__},hidden_size={forcasting_quant_model.forcasting_model.hidden_size},bits={forcasting_quant_model.autoencoder_quant_model.bottleneck_size},forecasting_learning_rate={forecasting_learning_rate},autoencoder_learning_rate={autoencoder_learning_rate}'
         super().__init__(forcasting_quant_model, train_loader, test_loader, load_to_gpu, comment)
 
         if forcasting_loss_function is None:
