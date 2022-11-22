@@ -40,7 +40,8 @@ class DynamicsModelDataset(Dataset):
 
 
 def load_dataset(file_path, input_key, output_key, dataset_class, device, normalize=False, test_size=0.3,
-                 y_clip_range=None, normalized_data_params_save_path='NormalizeInputConfigs'):
+                 y_clip_range=None, normalized_input_data_params_save_path='tmp/transformer/NormalizeInputConfigs.pkl',
+                 normalized_output_data_params_save_path='tmp/transformer/NormalizeOutputConfigs.pkl'):
     dataset = np.load(file_path, allow_pickle=True)
     x = dataset[()][input_key]
     y = dataset[()][output_key]
@@ -51,14 +52,15 @@ def load_dataset(file_path, input_key, output_key, dataset_class, device, normal
         print('Clipping y')
         y = y[:, :, y_clip_range[0]:y_clip_range[1]]
 
-    normalize_dataset_x = NormalizeTransform(save_path=normalized_data_params_save_path)
-    normalize_dataset_y = NormalizeTransform()
+    normalize_dataset_x = NormalizeTransform(save_path=normalized_input_data_params_save_path)
+    normalize_dataset_y = NormalizeTransform(save_path=normalized_output_data_params_save_path)
     if normalize:
         normalize_dataset_x.compute_mean_std(x)
         normalize_dataset_y.compute_mean_std(y)
         x = normalize_dataset_x.transform(x)
         y = normalize_dataset_y.transform(y)
         normalize_dataset_x.save()
+        normalize_dataset_y.save()
     x[:, :, 0] = 1
     if not y_clip_range:
         y[:, :, 0] = 1
@@ -68,3 +70,21 @@ def load_dataset(file_path, input_key, output_key, dataset_class, device, normal
     train_dataset = dataset_class(x_train, y_train, normalized=normalize)
     validation_dataset = dataset_class(x_test, y_test, normalized=normalize)
     return train_dataset, validation_dataset
+
+# class IndustrialBenchmarkTrajectoryDataset(DynamicsModelDataset):
+#
+#     def __init__(self, states, actions, rewards, next_states, normalized, x, y):
+#
+#         states = self.reshape_states_lstm(states)
+#         next_states = self.reshape_states_lstm(next_states)
+#         super().__init__(x, y, normalized)
+#
+#     def reshape_states_lstm(self, x, reshape, device):
+#         x = np.array(x).astype(np.float32)
+#
+#         x = torch.from_numpy(x).to(device)
+#         x = x.view(self.reshape)
+#         x = torch.flip(x, [1])
+#         #x = self.normalize_transformer.transform(x)
+#         #x = torch.nan_to_num(x, 1)
+#         return x

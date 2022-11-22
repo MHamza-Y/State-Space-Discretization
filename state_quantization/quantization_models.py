@@ -158,7 +158,7 @@ class DiscAutoEncoder(nn.ModuleList):
         print(self.encoder_layers)
         print('Bottleneck Layers')
         print(self.bottleneck_layers)
-        print('Decoded Layers')
+        print('Decoder Layers')
         print(self.decoder_layers)
 
     def build_autoencoder_layers(self):

@@ -1,3 +1,5 @@
+import os
+
 import dill
 import numpy as np
 import torch
@@ -25,12 +27,14 @@ class NormalizeTransform:
         return x
 
     def save(self):
+        os.makedirs(os.path.dirname(self.save_path), exist_ok=True)
         with open(self.save_path, 'wb') as f:
             dill.dump(self, f)
 
     def to(self, device):
         self.mean = self.mean.to(device)
         self.std = self.std.to(device)
+        return self
 
     @classmethod
     def load(cls, save_path):
@@ -88,7 +92,7 @@ def quantize_transform_creator(model_path, device, keys, reshape=(-1, -1, 6)):
     model = torch.load(model_path).to(device)
     model.eval()
     model.set_look_ahead(0)
-    normalize_dataset = NormalizeTransform.load('state_quantization/NormalizeInputConfigs.pkl')
+    normalize_dataset = NormalizeTransform.load('tmp/transformer/NormalizeInputConfigs.pkl')
     normalize_dataset.to(device)
     lstm_quantize = LSTMQuantize(model=model, normalize_transformer=normalize_dataset, reshape=reshape)
     return QuantizeBuffer(lstm_quantize=lstm_quantize, keys=keys)

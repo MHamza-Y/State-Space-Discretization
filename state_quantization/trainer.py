@@ -58,8 +58,8 @@ class Trainer:
 class NNTrainer(Trainer):
     def __init__(self, model, train_loader, test_loader,
                  load_to_gpu=False, loss_function=None, optimizer=None,
-                 learning_rate=1e-4, lr_scheduler=None, eval_loss_graph_tag='Model/Eval/loss',
-                 train_loss_graph_tag='Model/train/loss'):
+                 learning_rate=1e-4, lr_scheduler=None, eval_loss_graph_tags='Model/Eval/loss',
+                 train_loss_graph_tags='Model/train/loss'):
 
         comment = f'model={model.__class__},learning_rate={learning_rate},lr_scheduler={lr_scheduler}'
         super().__init__(model, train_loader, test_loader, load_to_gpu, comment)
@@ -73,8 +73,12 @@ class NNTrainer(Trainer):
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
         self.epoch = 0
-        self.eval_loss_graph_tag = eval_loss_graph_tag
-        self.train_loss_graph_tag = train_loss_graph_tag
+        if eval_loss_graph_tags is None:
+            eval_loss_graph_tags = ['Model/Eval/loss']
+        if train_loss_graph_tags is None:
+            train_loss_graph_tags = ['Model/train/loss']
+        self.eval_loss_graph_tags = eval_loss_graph_tags
+        self.train_loss_graph_tags = train_loss_graph_tags
 
     def post_epoch_hook(self):
         print('--------------------------------------')
@@ -96,7 +100,8 @@ class NNTrainer(Trainer):
             loss.backward()
             self.optimizer.step()
             total_loss += loss.item()
-            self.writer.add_scalar(self.train_loss_graph_tag, loss, self.epoch)
+            for tag in self.train_loss_graph_tags:
+                self.writer.add_scalar(tag, loss, self.epoch)
 
         print('--------------------------------------')
 
@@ -120,7 +125,8 @@ class NNTrainer(Trainer):
         print('--------------------------------------')
 
         avg_loss = total_loss / num_batches
-        self.writer.add_scalar(self.eval_loss_graph_tag, avg_loss, self.epoch)
+        for tag in self.eval_loss_graph_tags:
+            self.writer.add_scalar(tag, avg_loss, self.epoch)
         print(f"Model Test loss: {avg_loss}")
 
 
@@ -182,7 +188,7 @@ class ForcastingQuantTrainer(Trainer):
                 total_forecasting_loss += forecasting_loss.item()
 
             else:
-                self.model.forcasting_model.eval()
+                # self.model.forcasting_model.eval()
                 autoencoder_loss = self.autoencoder_loss_function(autoencoder_out, self.model.autoencoder_in)
                 self.autoencoder_optimizer.zero_grad()
                 autoencoder_loss.backward()
@@ -206,6 +212,7 @@ class ForcastingQuantTrainer(Trainer):
         total_forecasting_loss = 0
         total_autoencoder_loss = 0
         total_eval_model_loss = 0
+        total_first_out_loss = 0
 
         self.model.eval()
         if self.additional_eval_model:
@@ -223,8 +230,10 @@ class ForcastingQuantTrainer(Trainer):
                 forecasting_loss = self.forcasting_loss_function(forcasting_out, y)
                 autoencoder_loss = self.autoencoder_loss_function(autoencoder_out,
                                                                   self.model.autoencoder_in)
+                first_out_loss = self.forcasting_loss_function(forcasting_out[:, 0, :], y[:, 0, :])
                 total_forecasting_loss += forecasting_loss.item()
                 total_autoencoder_loss += autoencoder_loss.item()
+                total_first_out_loss += first_out_loss.item()
 
         print('--------------------------------------')
         if self.epoch < self.autoencoder_training_start:
@@ -240,4 +249,8 @@ class ForcastingQuantTrainer(Trainer):
                 avg_eval_model_loss = total_eval_model_loss / num_batches
                 self.writer.add_scalar("Model/Eval/loss", avg_eval_model_loss,
                                        abs(self.epoch - self.autoencoder_training_start))
+                avg_first_out_loss = total_first_out_loss / num_batches
+                self.writer.add_scalar("Model/Eval/first_out_loss", avg_first_out_loss,
+                                       abs(self.epoch - self.autoencoder_training_start))
                 print(f"Eval Model Test loss: {avg_eval_model_loss}")
+                print(f"First Out Loss: {avg_first_out_loss}")

@@ -2,7 +2,6 @@ from collections import OrderedDict
 
 import gym
 import numpy as np
-import torch
 from industrial_benchmark_python.IDS import IDS
 
 from state_quantization.transforms import Bin2Dec
@@ -258,7 +257,7 @@ class IBGymModded(gym.Env):
 
 
 class IBGymModelQ(IBGymModded):
-    def __init__(self, lstm_quantize, device='cpu', **kwargs):
+    def __init__(self, lstm_quantize, output_normalize_transform, device='cpu', **kwargs):
         self.device = device
         self.lstm_quantize = lstm_quantize
         self.bin2dec = Bin2Dec()
@@ -268,6 +267,7 @@ class IBGymModelQ(IBGymModded):
         self.v = 0
         self.g = 0
         self.h = 0
+        self.output_normalize_transform = output_normalize_transform
         super().__init__(**kwargs)
 
     def reset(self):
@@ -313,9 +313,7 @@ class IBGymModelQ(IBGymModded):
         return discrete_obs
 
     def get_fatigue_consumption(self, model_output):
-        zero_padding = torch.zeros((model_output.shape[0], model_output.shape[1], 4)).to(self.device)
-        model_output = torch.cat((zero_padding, model_output), dim=-1)
-        transformed_output = self.lstm_quantize.normalize_transformer.inverse_transform(model_output)[0][
+        transformed_output = self.output_normalize_transform.inverse_transform(model_output)[0][
             0].detach().cpu().numpy()
         return transformed_output[-2], transformed_output[-1]
 

@@ -41,6 +41,19 @@ class SaveBestPolicy(OnEpisodeEndCallback):
             algo.get_policy().save(self.save_path)
 
 
+class SavePolicyXInterval(OnEpisodeEndCallback):
+
+    def __init__(self, save_path, save_interval=10):
+        self.save_path = save_path
+        self.save_interval = save_interval
+        self.counter = 0
+
+    def execute_callback(self, algo, trainer):
+        if self.counter % self.save_interval == 0:
+            algo.get_policy().save(self.save_path)
+        self.counter += 1
+
+
 class SavePolicyOnTrainingEnd(OnTrainingEndCallback):
 
     def __init__(self, save_path):

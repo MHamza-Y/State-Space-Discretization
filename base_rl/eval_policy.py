@@ -62,6 +62,7 @@ class EvalDiscreteStatePolicy:
             self.eval_trajectories.append(episode)
             self.eval_new_state_found.append(new_state_found)
             clear_output(wait=False)
+            print(f'Tag: {self.tag}')
             print(f'Episode {i} Reward: {self.eval_rewards_per_epoch[-1]} || New State Found: {new_state_found}')
             plt.plot(self.eval_rewards_per_epoch)
             plt.show()

@@ -12,12 +12,13 @@ class QLPolicy(DiscretePolicy):
     def state_exist(self, state):
         return state in self.q_table
 
-    def __init__(self, action_space_n, q_table=None, ):
+    def __init__(self, action_space_n, q_table=None, initial_q_value=0):
         if q_table:
             self.q_table = q_table
         else:
             self.q_table = {}
 
+        self.initial_q_value = initial_q_value
         self.action_space_n = action_space_n
 
     def get_action(self, state):
@@ -34,14 +35,14 @@ class QLPolicy(DiscretePolicy):
 
     def add_new_state(self, state):
         if not self.state_exist(state):
-            self.q_table[state] = np.zeros(self.action_space_n)
+            self.q_table[state] = np.ones(self.action_space_n) * self.initial_q_value
 
 
 class QLearningAlgo(RLAlgorithm):
 
     def __init__(self, epochs, alpha: HyperParamScheduler, gamma, epsilon: HyperParamScheduler, env_creator, env_kwargs,
                  reward_offset=0,
-                 show_reward_type='mean', policy=None, comment=''):
+                 show_reward_type='mean', policy=None, comment='', initial_q_value=0):
 
         self.epochs = epochs
         self.comment = comment
@@ -58,7 +59,7 @@ class QLearningAlgo(RLAlgorithm):
         self.eval_rewards_per_epoch = []
         self.eval_new_state_found = []
         self.eval_trajectories = []
-
+        self.initial_q_value = initial_q_value
         self.env = None
         self.writer = None
 
@@ -68,7 +69,15 @@ class QLearningAlgo(RLAlgorithm):
         self.mean_train_reward_per_epoch = []
         self.current_epoch = 0
         if not self.policy:
-            self.policy = QLPolicy(self.env.action_space.n)
+            self.policy = QLPolicy(self.env.action_space.n, initial_q_value=self.initial_q_value)
+
+    def q_table_update_step(self, state, action, reward, next_state, alpha):
+        old_value = self.policy.get_q_value(state=state, action=action)
+        next_max = self.policy.get_max_q_value(next_state)
+
+        new_value = (1 - alpha) * old_value + alpha * (
+                reward + self.reward_offset + self.gamma * next_max)
+        self.policy.update_q_value(state=state, action=action, new_value=new_value)
 
     def train_episode(self):
         state = self.env.reset()
@@ -91,12 +100,8 @@ class QLearningAlgo(RLAlgorithm):
             total_reward += reward
 
             self.policy.add_new_state(next_state)
-            old_value = self.policy.get_q_value(state=state, action=action)
-            next_max = self.policy.get_max_q_value(next_state)
-
-            new_value = (1 - current_alpha) * old_value + current_alpha * (
-                    reward + self.reward_offset + self.gamma * next_max)
-            self.policy.update_q_value(state=state, action=action, new_value=new_value)
+            self.q_table_update_step(state=state, action=action, reward=reward, next_state=next_state,
+                                     alpha=current_alpha)
 
             state = next_state
 

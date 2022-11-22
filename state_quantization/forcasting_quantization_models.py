@@ -16,7 +16,7 @@ class ForcastingQuant(nn.Module):
 
     def forward(self, x):
         forcasting_out = self.forcasting_model(x)
-        self.autoencoder_in = self.forcasting_model.hidden_states.detach()
+        self.autoencoder_in = self.forcasting_model.hidden_states.detach().clone()
         autoencoder_out = self.autoencoder_quant_model(self.autoencoder_in)
         self.quantized_state = self.autoencoder_quant_model.bottleneck_out
 
@@ -57,21 +57,76 @@ class ForcastingQuantInferenceWrapper(nn.Module):
         return self.model.get_seq_len()
 
 
-class EmbeddedAEForcastingQuant(LSTMForcasting):
+class EmbeddedAEForcastingQuant(nn.Module):
 
-    def __init__(self, autoencoder_quant_model: DiscAutoEncoder, **kwargs):
-        super().__init__(**kwargs)
-        self.autoencoder_quant_model = autoencoder_quant_model
-        self.quantized_state = []
-        self.autoencoder_in = []
+    def __init__(self, model: ForcastingQuant):
+        super().__init__()
+        self.forcasting_model = model.forcasting_model
+        self.autoencoder_quant_model = model.autoencoder_quant_model
+
+    def forward(self, x):
+        outputs = []
+        (h, c) = self.forcasting_model.init_hidden(x.shape[0])
+
+        for i in range(self.forcasting_model.seq_len):
+            self.lstm_layers_forward(x=x[:, i, :], h=h, c=c)
+
+        self.hidden_states = torch.cat((h[-1], c[-1]), dim=1)
+        output = self.forcasting_model.final_dense_forward(h[-1])
+
+        outputs += [output.unsqueeze(1)]
+        for t in range(self.forcasting_model.look_ahead):
+            x_t = x[:, self.forcasting_model.seq_len + t, :].clone()
+
+            x_t[:, self.forcasting_model.replace_start:self.forcasting_model.replace_end] = output
+
+            self.lstm_layers_forward(x=x_t, h=h, c=c)
+            output = self.forcasting_model.final_dense_forward(h[-1])
+            outputs += [output.unsqueeze(1)]
+
+        outputs = torch.cat(outputs, dim=1)
+        return outputs
 
     def lstm_layers_forward(self, x, h, c):
         layer_input = x
-        for layer_idx in range(self.n_layers):
+        for layer_idx in range(self.forcasting_model.n_layers):
             ae_in = torch.cat((h[layer_idx], c[layer_idx]), dim=1)
             (h[layer_idx], c[layer_idx]) = torch.chunk(self.autoencoder_quant_model(ae_in), chunks=2, dim=1)
-            (h[layer_idx], c[layer_idx]) = self.lstm_layers[layer_idx](layer_input, (h[layer_idx], c[layer_idx]))
+            (h[layer_idx], c[layer_idx]) = self.forcasting_model.lstm_layers[layer_idx](layer_input,
+                                                                                        (h[layer_idx], c[layer_idx]))
 
-            if layer_idx < self.n_layers - 1:
-                h[layer_idx] = self.lstm_dropout_layers[layer_idx](h[layer_idx])
+            if layer_idx < self.forcasting_model.n_layers - 1:
+                h[layer_idx] = self.forcasting_model.lstm_dropout_layers[layer_idx](h[layer_idx])
             layer_input = h[layer_idx]
+
+
+class SingleEmbeddedAEForcastingQuant(nn.Module):
+
+    def __init__(self, model: ForcastingQuant):
+        super().__init__()
+        self.forcasting_model = model.forcasting_model
+        self.autoencoder_quant_model = model.autoencoder_quant_model
+
+    def forward(self, x):
+        outputs = []
+        (h, c) = self.forcasting_model.init_hidden(x.shape[0])
+
+        for i in range(self.forcasting_model.seq_len):
+            self.forcasting_model.lstm_layers_forward(x=x[:, i, :], h=h, c=c)
+
+        self.hidden_states = torch.cat((h[-1], c[-1]), dim=1)
+        (h[-1], c[-1]) = torch.chunk(self.autoencoder_quant_model(self.hidden_states), chunks=2, dim=1)
+        output = self.forcasting_model.final_dense_forward(h[-1])
+
+        outputs += [output.unsqueeze(1)]
+        for t in range(self.forcasting_model.look_ahead):
+            x_t = x[:, self.forcasting_model.seq_len + t, :].clone()
+
+            x_t[:, self.forcasting_model.replace_start:self.forcasting_model.replace_end] = output
+
+            self.forcasting_model.lstm_layers_forward(x=x_t, h=h, c=c)
+            output = self.forcasting_model.final_dense_forward(h[-1])
+            outputs += [output.unsqueeze(1)]
+
+        outputs = torch.cat(outputs, dim=1)
+        return outputs
