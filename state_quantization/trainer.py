@@ -223,17 +223,19 @@ class ForcastingQuantTrainer(Trainer):
                     X, y = X.cuda(non_blocking=True), y.cuda(non_blocking=True)
                 forcasting_out, autoencoder_out = self.model(X)
                 if self.additional_eval_model:  # and self.epoch >= self.autoencoder_training_start:
-                    output = self.additional_eval_model(X)
-                    eval_model_loss = self.additional_eval_model_loss_func(output, y)
+                    additional_eval_model_output = self.additional_eval_model(X)
+                    eval_model_loss = self.additional_eval_model_loss_func(additional_eval_model_output, y)
                     total_eval_model_loss += eval_model_loss.item()
+                    first_out_loss = self.additional_eval_model_loss_func(additional_eval_model_output[:, 0, :],
+                                                                          y[:, 0, :])
+                    total_first_out_loss += first_out_loss.item()
 
                 forecasting_loss = self.forcasting_loss_function(forcasting_out, y)
                 autoencoder_loss = self.autoencoder_loss_function(autoencoder_out,
                                                                   self.model.autoencoder_in)
-                first_out_loss = self.forcasting_loss_function(forcasting_out[:, 0, :], y[:, 0, :])
+
                 total_forecasting_loss += forecasting_loss.item()
                 total_autoencoder_loss += autoencoder_loss.item()
-                total_first_out_loss += first_out_loss.item()
 
         print('--------------------------------------')
         if self.epoch < self.autoencoder_training_start:
