@@ -6,6 +6,17 @@ def calculate_uncertainty_from_variance(variance, count):
     return np.nan_to_num(variance / (count - 1), nan=1e20)
 
 
+def calculate_alpha_prior(count_state_action_state):
+    num_states = count_state_action_state.shape[0]
+    mask = count_state_action_state > 0
+    total_next_state_visited_per_state_action = np.sum(mask, 2)
+    total_next_state_visited_per_state_action = np.expand_dims(total_next_state_visited_per_state_action, axis=2)
+    alpha_prior = total_next_state_visited_per_state_action / num_states
+    print(alpha_prior.min())
+    print(alpha_prior.max())
+    return alpha_prior
+
+
 class DUIPITrainer:
     """
     Diagonal Approximation of Uncertainty Incorporating Policy Iteration (DUIPI)
@@ -13,7 +24,7 @@ class DUIPITrainer:
     """
 
     def __init__(self, reward_function, transition_model, count_state_action, count_state_action_state, variance_R, xi,
-                 gamma):
+                 gamma, bayesian=False, alpha_prior=0.5):
         """
 
         :param reward_function: R(s, a, s_next) expected reward of performing action 'a' on state 's' and reaching state 's_next'
@@ -30,18 +41,23 @@ class DUIPITrainer:
         self.num_states = transition_model.shape[0]
         self.num_actions = transition_model.shape[1]
         self.mask = self.count_state_action > 0
+        self.bayesian = bayesian
+        self.count_state_action_state = count_state_action_state
+        self.alpha_prior = alpha_prior  # calculate_alpha_prior(count_state_action_state)
         self.pi = np.ones([self.num_states, self.num_actions]) / self.num_actions
         self.Q = np.zeros([self.num_states, self.num_actions])
         self.uncertainty_Q = np.zeros([self.num_states, self.num_actions])
-        self.uncertainty_R = np.zeros([self.num_states, self.num_actions,
-                                       self.num_states])  # calculate_uncertainty_from_variance(variance_R, count_state_action_state)
+
+        self.uncertainty_R = calculate_uncertainty_from_variance(variance_R, count_state_action_state)
         self.uncertainty_P = self.calculate_transition_uncertainty()
+
 
     def get_policy(self):
         """
         Returns the deterministic policy
         :return: deterministic policy
         """
+        print(self.pi)
         return np.argmax(self.pi, axis=1)
 
     def calculate_transition_uncertainty(self):
@@ -54,13 +70,20 @@ class DUIPITrainer:
         max_variance = 1 / 4 according to Popoviciu's inequality on variances
         """
         max_variance = 1 / 4
-        uncertainty_p = np.zeros([self.num_states, self.num_actions, self.num_states])
-        for state in range(self.num_states):
-            uncertainty_p[:, :, state] = self.transition_model[:, :, state] * (
-                    1 - self.transition_model[:, :, state]) / (self.count_state_action - 1)
+        if self.bayesian:
+            alpha_d = (self.count_state_action_state + self.alpha_prior)
+            alpha_d_0 = np.sum(alpha_d, 2)[:, :, np.newaxis]
+            self.transition_model = alpha_d / alpha_d_0
+            uncertainty_p = alpha_d * (alpha_d_0 - alpha_d) / alpha_d_0 ** 2 / (alpha_d_0 + 1)
+        else:
 
-        uncertainty_p = np.nan_to_num(uncertainty_p, nan=max_variance, posinf=max_variance)
-        uncertainty_p[~self.mask] = max_variance
+            uncertainty_p = np.zeros([self.num_states, self.num_actions, self.num_states])
+            for state in range(self.num_states):
+                uncertainty_p[:, :, state] = self.transition_model[:, :, state] * (
+                        1 - self.transition_model[:, :, state]) / (self.count_state_action - 1)
+
+            uncertainty_p = np.nan_to_num(uncertainty_p, nan=max_variance, posinf=max_variance)
+            uncertainty_p[self.count_state_action == 0] = max_variance
         return uncertainty_p
 
     def policy_evaluation(self):
