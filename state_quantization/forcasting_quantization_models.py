@@ -63,6 +63,8 @@ class EmbeddedAEForcastingQuant(nn.Module):
         super().__init__()
         self.forcasting_model = model.forcasting_model
         self.autoencoder_quant_model = model.autoencoder_quant_model
+        self.seq_len = model.get_seq_len()
+        self.quantized_state = []
 
     def forward(self, x):
         outputs = []
@@ -71,7 +73,8 @@ class EmbeddedAEForcastingQuant(nn.Module):
         for i in range(self.forcasting_model.seq_len):
             self.lstm_layers_forward(x=x[:, i, :], h=h, c=c)
 
-        self.hidden_states = torch.cat((h[-1], c[-1]), dim=1)
+        # self.hidden_states = torch.cat((h[-1], c[-1]), dim=1)
+        self.quantized_state = self.autoencoder_quant_model.bottleneck_out
         output = self.forcasting_model.final_dense_forward(h[-1])
 
         outputs += [output.unsqueeze(1)]
@@ -86,6 +89,15 @@ class EmbeddedAEForcastingQuant(nn.Module):
 
         outputs = torch.cat(outputs, dim=1)
         return outputs
+
+    def get_seq_len(self):
+        return self.forcasting_model.seq_len
+
+    def get_device(self):
+        return next(self.parameters()).device
+
+    def set_look_ahead(self, look_ahead):
+        self.forcasting_model.set_look_ahead(look_ahead)
 
     def lstm_layers_forward(self, x, h, c):
         layer_input = x
