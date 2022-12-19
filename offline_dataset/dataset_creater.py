@@ -99,7 +99,7 @@ def print_progress(processes: List[GymEnvSamplerProcess], ep_count):
 class GymParallelSampler:
 
     def __init__(self, env_creator, path, episodes: int, workers: int, env_kwargs, compress_columns=None, policy=None,
-                 reward_threshold=None, buffer_transform=None, buffer_transform_kwargs=None):
+                 reward_threshold=None, buffer_transform=None, buffer_transform_kwargs=None, pool=None):
         self.path = path
         self.episodes = episodes
         self.workers = workers
@@ -113,22 +113,23 @@ class GymParallelSampler:
                                  reward_threshold=reward_threshold, buffer_transform=buffer_transform,
                                  buffer_transform_kwargs=buffer_transform_kwargs) for i in
             range(workers)]
-        self.print_process = Process(target=print_progress, args=(self.sampler_processes,))
+        self.pool = pool
 
     def sample(self):
         for p in self.sampler_processes:
-            p.start()
-        # self.print_process.start()
+            if self.pool:
+                self.pool.apply_async(p)
+            else:
+                p.start()
         print_progress(self.sampler_processes, self.ep_count)
-        # for p in self.sampler_processes:
-        #     p.join()
-        # self.print_process.join()
 
-    def create_merged_dataset(self, save_path=None):
+
+    def create_merged_dataset(self, save_path=None, merge_dataset_fn=merge_rllib_out):
         data_path = os.path.join(self.path, '*', '*.json')
-        merged_data = merge_rllib_out(data_path)
+        merged_data = merge_dataset_fn(data_path)
         if save_path:
             print(save_path)
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
             save_numpy(save_path, merged_data)
 
         return merged_data

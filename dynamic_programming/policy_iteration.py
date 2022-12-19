@@ -3,14 +3,14 @@ import numpy as np
 
 
 class PolicyIteration:
-    def __init__(self, reward_function, transition_model, gamma, init_policy=None, sa_reward=False):
+    def __init__(self, reward_function, transition_model, gamma, init_policy=None, sa_reward='state'):
         self.num_states = transition_model.shape[0]
         self.num_actions = transition_model.shape[1]
         self.reward_function = reward_function
 
         self.transition_model = transition_model
         self.gamma = gamma
-        self.sa_reward = sa_reward
+        self.sa_reward = False if sa_reward == 'state' else True
 
         self.values = np.zeros(self.num_states)
         if init_policy is None:
@@ -31,7 +31,7 @@ class PolicyIteration:
             delta = max(delta, abs(temp - self.values[s]))
         return delta
 
-    def run_policy_evaluation(self, eval_epochs, tol=1e-3):
+    def run_policy_evaluation(self, eval_epochs, tol=1e-6):
         epoch = 0
         delta = self.one_policy_evaluation()
         delta_history = [delta]
@@ -39,9 +39,9 @@ class PolicyIteration:
             epoch += 1
             delta = self.one_policy_evaluation()
             delta_history.append(delta)
-            print(delta)
-            # if delta < tol:
-            #     break
+
+            if delta < tol:
+                break
         return len(delta_history)
 
     def run_policy_improvement(self):

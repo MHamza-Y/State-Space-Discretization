@@ -14,9 +14,12 @@ def convert_dict_list_to_numpy(data):
 def load_rllib_dataset(glob_regex):
     json_files = glob.glob(glob_regex)
     data = []
+    i = 0
     for file in json_files:
         with open(file) as f:
             for line in f:
+                print(f"Episode {i} Loaded")
+                i += 1
                 episode_obj = json.loads(line)
                 convert_dict_list_to_numpy(episode_obj)
                 data.append(episode_obj)
@@ -33,7 +36,8 @@ def save_json(out_path, data):
 def merge_rllib_out(rllib_files):
     data = load_rllib_dataset(rllib_files)
     mod_data = {}
-    for obj in data:
+    for i, obj in enumerate(data):
+        print(f"Episode {i} Merged")
         for key, value in obj.items():
             if key not in "type":
                 if key in mod_data:

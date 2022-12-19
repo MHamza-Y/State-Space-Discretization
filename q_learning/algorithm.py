@@ -42,7 +42,7 @@ class QLearningAlgo(RLAlgorithm):
 
     def __init__(self, epochs, alpha: HyperParamScheduler, gamma, epsilon: HyperParamScheduler, env_creator, env_kwargs,
                  reward_offset=0,
-                 show_reward_type='mean', policy=None, comment='', initial_q_value=0):
+                 show_reward_type='mean', policy=None, comment='', initial_q_value=0, log_dir='runs'):
 
         self.epochs = epochs
         self.comment = comment
@@ -62,9 +62,10 @@ class QLearningAlgo(RLAlgorithm):
         self.initial_q_value = initial_q_value
         self.env = None
         self.writer = None
+        self.log_dir = log_dir
 
     def setup(self):
-        self.writer = SummaryWriter(comment=self.comment)
+        self.writer = SummaryWriter(comment=self.comment, log_dir=self.log_dir)
         self.env = self.env_creator(**self.env_kwargs)
         self.mean_train_reward_per_epoch = []
         self.current_epoch = 0

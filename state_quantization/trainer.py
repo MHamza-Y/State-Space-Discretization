@@ -8,8 +8,8 @@ from state_quantization.forcasting_quantization_models import ForcastingQuant
 
 class Trainer:
 
-    def __init__(self, model, train_loader, test_loader, load_to_gpu, comment):
-        self.writer = SummaryWriter(comment=comment)
+    def __init__(self, model, train_loader, test_loader, load_to_gpu, comment, log_dir):
+        self.writer = SummaryWriter(comment=comment, log_dir=log_dir)
         self.model = model
         self.train_loader = train_loader
         self.test_loader = test_loader
@@ -59,10 +59,10 @@ class NNTrainer(Trainer):
     def __init__(self, model, train_loader, test_loader,
                  load_to_gpu=False, loss_function=None, optimizer=None,
                  learning_rate=1e-4, lr_scheduler=None, eval_loss_graph_tags='Model/Eval/loss',
-                 train_loss_graph_tags='Model/train/loss'):
+                 train_loss_graph_tags='Model/train/loss', log_dir='runs'):
 
         comment = f'model={model.__class__},learning_rate={learning_rate},lr_scheduler={lr_scheduler}'
-        super().__init__(model, train_loader, test_loader, load_to_gpu, comment)
+        super().__init__(model, train_loader, test_loader, load_to_gpu, comment, log_dir)
 
         if loss_function is None:
             loss_function = torch.nn.MSELoss()
@@ -135,10 +135,10 @@ class ForcastingQuantTrainer(Trainer):
                  load_to_gpu=False, forcasting_loss_function=None, forecasting_optimizer=None,
                  forecasting_learning_rate=1e-4, forecasting_lr_scheduler=None, autoencoder_lr_scheduler=None,
                  autoencoder_learning_rate=1e-4, autoencoder_loss_function=None, autoencoder_optimizer=None,
-                 additional_eval_model=None):
+                 additional_eval_model=None, log_dir='runs'):
 
         comment = f'model={forcasting_quant_model.__class__},hidden_size={forcasting_quant_model.forcasting_model.hidden_size},bits={forcasting_quant_model.autoencoder_quant_model.bottleneck_size},forecasting_learning_rate={forecasting_learning_rate},autoencoder_learning_rate={autoencoder_learning_rate}'
-        super().__init__(forcasting_quant_model, train_loader, test_loader, load_to_gpu, comment)
+        super().__init__(forcasting_quant_model, train_loader, test_loader, load_to_gpu, comment, log_dir)
 
         if forcasting_loss_function is None:
             forcasting_loss_function = torch.nn.MSELoss()

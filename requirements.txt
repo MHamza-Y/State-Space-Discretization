@@ -8,6 +8,7 @@ industrial_benchmark_python
 ray[all]
 gym==0.21
 pyglet
-torch==1.12.0+cu116
+torch
 dill
- --extra-index-url https://download.pytorch.org/whl/cu116
+papermill
+black

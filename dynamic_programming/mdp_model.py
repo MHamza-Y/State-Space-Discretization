@@ -159,14 +159,23 @@ class MDPModel:
 
 
 def create_mdp_models(load_path, mdp_save_path, reward_function_type, device, calc_reward_variance=False,
-                      reward_offset=0):
+                      reward_offset=0, dataset_size=None, save=True):
     samples = np.load(load_path, allow_pickle=True)[()]
+    last_index = dataset_size if dataset_size else samples['rewards'].size
+    obs = samples['obs'][0:last_index]
+    new_obs = samples['new_obs'][0:last_index]
+    actions = samples['actions'][0:last_index]
+    rewards = samples['rewards'][0:last_index]
     print(mdp_save_path)
-    print(samples['rewards'].mean())
-    print(samples['rewards'].size)
-    print(np.unique(samples['obs']).size)
-    samples['rewards'] += reward_offset
-    mdp_model = MDPModel(states=samples['obs'], next_states=samples['new_obs'], actions=samples['actions'],
-                         rewards=samples['rewards'], device=device,
+    print(rewards.mean())
+    print(rewards.size)
+    print(np.unique(obs).size)
+    rewards += reward_offset
+
+    mdp_model = MDPModel(states=obs, next_states=new_obs,
+                         actions=actions,
+                         rewards=rewards, device=device,
                          reward_function_type=reward_function_type, calc_reward_variance=calc_reward_variance)
-    mdp_model.save(mdp_save_path)
+    if save:
+        mdp_model.save(mdp_save_path)
+    return mdp_model
