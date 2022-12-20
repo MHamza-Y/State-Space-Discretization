@@ -9,7 +9,7 @@ from offline_dataset.dataset_creater import GymParallelSampler
 from state_quantization.transforms import multi_model_quantize_transforms_creator
 
 
-def generate_multimodal_dataset(model_names, episodes, pool=None, steps_per_episode=1000, workers=8,
+def generate_multimodal_dataset(model_names, episodes, steps_per_episode=1000, workers=8,
                                 root_path='tmp'):
     writer_path = join(root_path, "dataset_creator_tmp")
     model_paths = [join(root_path, 'state_quantization', model_name) for model_name in model_names]
@@ -25,7 +25,7 @@ def generate_multimodal_dataset(model_names, episodes, pool=None, steps_per_epis
                                           workers=workers, env_kwargs=env_kwargs, reward_threshold=None,
                                           buffer_transform=multi_model_quantize_transforms_creator,
                                           buffer_transform_kwargs=q_transform_kwargs,
-                                          policy=None, pool=pool)
+                                          policy=None)
     parallel_sampler.sample()
     end = time.time()
     print(end - start)
