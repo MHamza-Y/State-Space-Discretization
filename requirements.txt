@@ -6,7 +6,7 @@ tables
 seaborn
 tqdm
 industrial_benchmark_python
-ray[all]
+ray[all]==2.1.0
 gym==0.21
 pyglet
 torch

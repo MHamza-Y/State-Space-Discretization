@@ -5,7 +5,7 @@ from typing import List
 import gym
 from ray.rllib.evaluation.sample_batch_builder import SampleBatchBuilder
 from ray.rllib.offline.json_writer import JsonWriter
-from torch.multiprocessing import Process, set_start_method, Value
+from multiprocessing import Process, set_start_method, Value
 
 from base_rl.base_policies import RandomPolicy
 from offline_dataset.convert_datset import merge_rllib_out, save_numpy
