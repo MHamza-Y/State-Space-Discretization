@@ -81,6 +81,7 @@ class QLearningAlgo(RLAlgorithm):
         self.policy.update_q_value(state=state, action=action, new_value=new_value)
 
     def train_episode(self):
+        print(f'Episode: {self.current_epoch}')
         state = self.env.reset()
         self.policy.add_new_state(state)
         done = False
