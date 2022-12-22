@@ -70,8 +70,8 @@ class PolicyIteration:
             new_policy_change = self.run_policy_improvement()
             eval_count_history.append(new_eval_count)
             policy_change_history.append(new_policy_change)
-            if new_policy_change == 0:
-                break
+            # if new_policy_change == 0:
+            #     break
 
         print(f'# epoch: {len(policy_change_history)}')
         print(f'eval count = {eval_count_history}')

@@ -44,7 +44,7 @@ class RMinTrainer:
             old_q_table = np.array(self.q_table, copy=True)
             self.single_policy_evaluation(old_q_table=old_q_table, gamma=gamma)
             policy_changes.append(get_policy_changes(old_q_table=old_q_table, new_q_table=self.q_table))
-            print(f'Old vs New policy difference: {np.linalg.norm(self.q_table - old_q_table)}')
+            #print(f'Old vs New policy difference: {np.linalg.norm(self.q_table - old_q_table)}')
             # if policy_changes[-1] == 0:
             #     print(f'Epoch: {epoch}')
             #     break
