@@ -1,11 +1,9 @@
-from multiprocessing.pool import Pool
-from time import sleep
+from concurrent import futures
+from concurrent.futures import ProcessPoolExecutor
 from typing import List
 
 import numpy as np
-from IPython.core.display_functions import clear_output
 from tqdm import tqdm
-
 
 from base_rl.eval_policy import EvalDiscreteStatePolicy
 
@@ -35,23 +33,6 @@ class PolicyBenchmarks:
             self.update_metrics(evaluator=evaluator)
 
 
-def print_progress(results):
-    total_process = len(results)
-    pbar = tqdm(total=total_process)
-    dones = [False] * total_process
-    last_count = 0
-    while not all(dones):
-        dones = [result.ready() for result in results]
-        counts = dones.count(True)
-        diff = counts - last_count
-        if diff:
-            clear_output(wait=False)
-            pbar.update(diff)
-        pbar.refresh()
-        sleep(1)
-        last_count = counts
-
-
 class PolicyBenchmarksParallel(PolicyBenchmarks):
 
     def __init__(self, pool_size=4, **kwargs):
@@ -60,15 +41,11 @@ class PolicyBenchmarksParallel(PolicyBenchmarks):
         self.evaluated_evaluators = []
 
     def benchmark(self):
-
-        with Pool(self.pool_size) as pool:
-            results = []
-            for evaluator in self.evaluators:
-                result = pool.apply_async(evaluator.evaluate, kwds={'epochs': self.epochs, 'render': False})
-                results.append(result)
-
-            print_progress(results=results)
-            for result in results:
-                evaluated_benchmark = result.get()
-                self.evaluated_evaluators.append(evaluated_benchmark)
-                self.update_metrics(evaluated_benchmark)
+        total_process = len(self.evaluators)
+        pbar = tqdm(total=total_process)
+        with ProcessPoolExecutor(max_workers=self.pool_size) as executor:
+            tasks = [executor.submit(evaluator.evaluate, epochs=self.epochs, render=False) for evaluator
+                              in self.evaluators]
+            for task in futures.as_completed(tasks):
+                self.evaluated_evaluators.append(task.result())
+                pbar.update(1)
