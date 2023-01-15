@@ -5,6 +5,7 @@ from typing import List
 import numpy as np
 from tqdm import tqdm
 
+
 from base_rl.eval_policy import EvalDiscreteStatePolicy
 
 
@@ -35,14 +36,15 @@ class PolicyBenchmarks:
 
 def print_progress(results):
     total_process = len(results)
-    pbar = tqdm(total=total_process, miniters=1, mininterval=1, maxinterval=2)
+    pbar = tqdm(total=total_process)
     dones = [False] * total_process
-    last_count = total_process
+    last_count = 0
     while not all(dones):
         dones = [result.ready() for result in results]
-        counts = dones.count(False)
-        diff = last_count - counts
+        counts = dones.count(True)
+        diff = counts - last_count
         pbar.update(diff)
+        sleep(1)
         last_count = counts
 
 
