@@ -1,7 +1,9 @@
 from multiprocessing.pool import Pool
+from time import sleep
 from typing import List
 
 import numpy as np
+from tqdm import tqdm
 
 from base_rl.eval_policy import EvalDiscreteStatePolicy
 
@@ -31,6 +33,19 @@ class PolicyBenchmarks:
             self.update_metrics(evaluator=evaluator)
 
 
+def print_progress(pbar, results):
+    total_process = len(results)
+    dones = [False] * total_process
+    last_count = total_process
+    while not all(dones):
+
+        dones = [result.ready() for result in results]
+        counts = dones.count(False)
+        diff = last_count - counts
+        pbar.update(diff)
+        last_count = counts
+
+
 class PolicyBenchmarksParallel(PolicyBenchmarks):
 
     def __init__(self, pool_size=4, **kwargs):
@@ -39,14 +54,16 @@ class PolicyBenchmarksParallel(PolicyBenchmarks):
         self.evaluated_evaluators = []
 
     def benchmark(self):
+        total_process = len(self.evaluators)
+        pbar = tqdm(total=total_process)
         with Pool(self.pool_size) as pool:
             results = []
             for evaluator in self.evaluators:
                 result = pool.apply_async(evaluator.evaluate, kwds={'epochs': self.epochs, 'render': False})
                 results.append(result)
 
+            print_progress(pbar=pbar, results=results)
             for result in results:
                 evaluated_benchmark = result.get()
-                print(f'Evaluated:{len(evaluated_benchmark)}/{results}')
                 self.evaluated_evaluators.append(evaluated_benchmark)
                 self.update_metrics(evaluated_benchmark)

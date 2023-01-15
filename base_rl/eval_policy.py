@@ -18,7 +18,7 @@ class EvalDiscreteStatePolicy:
         self.eval_mean = 0
         self.eval_std = 0
 
-    def evaluate(self, epochs, render=False, show_reward_type='mean'):
+    def evaluate(self, epochs, render=False, show_reward_type='mean', show_info=False):
         self.eval_trajectories = []
         env = self.env_creator(**self.env_kwargs)
         self.eval_rewards_per_epoch = []
@@ -59,15 +59,18 @@ class EvalDiscreteStatePolicy:
                 self.eval_rewards_per_epoch.append(total_reward / total_steps)
             else:
                 self.eval_rewards_per_epoch.append(total_reward)
+
+
             self.eval_trajectories.append(episode)
             self.eval_new_state_found.append(new_state_found)
-            clear_output(wait=False)
-            print(f'Tag: {self.tag}')
-            print(f'Episode {i} Reward: {self.eval_rewards_per_epoch[-1]} || New State Found: {new_state_found}')
-            plt.plot(self.eval_rewards_per_epoch)
-            plt.show()
+            if show_info:
+                clear_output(wait=False)
+                print(f'Tag: {self.tag}')
+                print(f'Episode {i} Reward: {self.eval_rewards_per_epoch[-1]} || New State Found: {new_state_found}')
+                plt.plot(self.eval_rewards_per_epoch)
+                plt.show()
         self.eval_mean = np.mean(self.eval_rewards_per_epoch)
         self.eval_std = np.std(self.eval_rewards_per_epoch)
-        print(f'Reward Mean: {self.eval_mean}')
-        print(f'Reward std : {self.eval_std}')
+        #print(f'Reward Mean: {self.eval_mean}')
+        #print(f'Reward std : {self.eval_std}')
         return self
