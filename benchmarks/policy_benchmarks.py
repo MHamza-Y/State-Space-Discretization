@@ -33,12 +33,12 @@ class PolicyBenchmarks:
             self.update_metrics(evaluator=evaluator)
 
 
-def print_progress(pbar, results):
+def print_progress(results):
     total_process = len(results)
+    pbar = tqdm(total=total_process, miniters=1, mininterval=1, maxinterval=2)
     dones = [False] * total_process
     last_count = total_process
     while not all(dones):
-
         dones = [result.ready() for result in results]
         counts = dones.count(False)
         diff = last_count - counts
@@ -54,15 +54,14 @@ class PolicyBenchmarksParallel(PolicyBenchmarks):
         self.evaluated_evaluators = []
 
     def benchmark(self):
-        total_process = len(self.evaluators)
-        pbar = tqdm(total=total_process)
+
         with Pool(self.pool_size) as pool:
             results = []
             for evaluator in self.evaluators:
                 result = pool.apply_async(evaluator.evaluate, kwds={'epochs': self.epochs, 'render': False})
                 results.append(result)
 
-            print_progress(pbar=pbar, results=results)
+            print_progress(results=results)
             for result in results:
                 evaluated_benchmark = result.get()
                 self.evaluated_evaluators.append(evaluated_benchmark)
