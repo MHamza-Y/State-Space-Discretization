@@ -23,7 +23,7 @@ class EvalDiscreteStatePolicy:
         env = self.env_creator(**self.env_kwargs)
         self.eval_rewards_per_epoch = []
         for i in range(epochs):
-            episode = {'obs': [], 'next_obs': [], 'rewards': [], 'actions': [], 'info': []}
+            episode = {'obs': [], 'next_obs': [], 'rewards': [], 'actions': [], 'info': [], 'new_obs': []}
             state = env.reset()
 
             new_state_found = False
@@ -38,6 +38,7 @@ class EvalDiscreteStatePolicy:
                     else:
                         action = env.action_space.sample()
                         new_state_found = True
+                        episode['new_obs'].append(state)
                 else:
                     action = self.policy.get_action(state)
 

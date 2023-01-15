@@ -8,12 +8,6 @@ from tqdm import tqdm
 from base_rl.eval_policy import EvalDiscreteStatePolicy
 
 
-class PolicyBenchmarkResults:
-
-    def __init__(self, evaluator: EvalDiscreteStatePolicy):
-        pass
-
-
 class PolicyBenchmarks:
     def __init__(self, evaluators: List[EvalDiscreteStatePolicy], epochs):
         self.epochs = epochs
