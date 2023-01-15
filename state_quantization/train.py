@@ -40,6 +40,7 @@ def test_step(data_loader, model, loss_function, load_to_gpu):
 
     avg_loss = total_loss / num_batches
     print(f"Test loss: {avg_loss}")
+    return avg_loss
 
 
 def train_model(model, test_loader, train_loader, loss_function=None, optimizer=None, learning_rate=0.001, n_epochs=10,

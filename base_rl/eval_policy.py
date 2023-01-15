@@ -70,3 +70,4 @@ class EvalDiscreteStatePolicy:
         self.eval_std = np.std(self.eval_rewards_per_epoch)
         print(f'Reward Mean: {self.eval_mean}')
         print(f'Reward std : {self.eval_std}')
+        return self
