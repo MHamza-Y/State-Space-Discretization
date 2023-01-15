@@ -3,6 +3,7 @@ from time import sleep
 from typing import List
 
 import numpy as np
+from IPython.core.display_functions import clear_output
 from tqdm import tqdm
 
 
@@ -43,7 +44,10 @@ def print_progress(results):
         dones = [result.ready() for result in results]
         counts = dones.count(True)
         diff = counts - last_count
-        pbar.update(diff)
+        if diff:
+            clear_output(wait=False)
+            pbar.update(diff)
+        pbar.refresh()
         sleep(1)
         last_count = counts
 
