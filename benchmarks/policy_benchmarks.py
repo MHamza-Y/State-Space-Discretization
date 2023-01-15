@@ -47,5 +47,6 @@ class PolicyBenchmarksParallel(PolicyBenchmarks):
 
             for result in results:
                 evaluated_benchmark = result.get()
+                print(f'Evaluated:{len(evaluated_benchmark)}/{results}')
                 self.evaluated_evaluators.append(evaluated_benchmark)
                 self.update_metrics(evaluated_benchmark)
