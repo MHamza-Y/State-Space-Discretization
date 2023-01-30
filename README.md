@@ -3,7 +3,7 @@
 This repository contains the code for experiments in the Master Thesis "State Space Discretization for Reinforcement Learning". The thesis aimed at creating models that transform continuous, high-dimensional state spaces in reinforcement learning into discrete value embeddings, enabling the use of classical (tabular) reinforcement learning algorithms while retaining deep neural network generalization abilities. These models result in tabular policies, which are more interpretable to humans than policies generated through deep reinforcement learning with deep neural networks.
 
 
-The models use overshooting LSTMs to produce continuous embeddings of the input state history, then convert them to discrete embeddings using various techniques. The models are tested on classical reinforcement learning algorithms, online, offline, and model-based, for a highly complex and partially observable Industrial Benchmark environment. The best results from these techniques are compared with the best results from the online deep reinforcement learning algorithm PPO. The results from the comparison are shown below:
+The models use overshooting LSTMs to produce continuous embeddings of the input state history, then convert them to discrete embeddings using various techniques. The models are tested on classical reinforcement learning algorithms, online, offline, and model-based, for a highly complex and partially observable [Industrial Benchmark environment](https://github.com/siemens/industrialbenchmark). The best results from these techniques are compared with the best results from the online deep reinforcement learning algorithm PPO. The results from the comparison are shown below:
 
 
 
