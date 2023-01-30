@@ -128,8 +128,8 @@ class LSTMForcastingConstOut(LSTMForcasting):
         for i in range(self.seq_len):
             self.lstm_layers_forward(x=x[:, i, :], h=h, c=c)
 
-        self.quantized_state = torch.cat((h[-1], c[-1]), dim=1)
-        output = self.final_dense_forward(h)
+        self.hidden_states = torch.cat((h[-1], c[-1]), dim=1)
+        output = self.final_dense_forward(h[-1])
 
         outputs += [output.unsqueeze(1)]
         for t in range(self.look_ahead):
